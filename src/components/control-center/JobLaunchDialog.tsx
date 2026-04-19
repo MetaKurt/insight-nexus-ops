@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 
 import { api } from "@/lib/api";
 import { jobTypeCatalog } from "@/mocks/jobs";
@@ -54,6 +55,9 @@ export function JobLaunchDialog({ open, onOpenChange, defaultJobType }: JobLaunc
   const [yearsStr, setYearsStr] = useState("2026, 2027");
   const [availableOnly, setAvailableOnly] = useState(true);
   const [maxPages, setMaxPages] = useState<string>("10");
+  // email_lookup specific
+  const [maxLookups, setMaxLookups] = useState<string>("10");
+  const [forceReenrich, setForceReenrich] = useState(false);
 
   const definition: JobTypeDefinition =
     jobTypeCatalog.find((d) => d.id === jobType) ?? jobTypeCatalog[0];
@@ -77,6 +81,8 @@ export function JobLaunchDialog({ open, onOpenChange, defaultJobType }: JobLaunc
       setYearsStr("2026, 2027");
       setAvailableOnly(true);
       setMaxPages("10");
+      setMaxLookups("10");
+      setForceReenrich(false);
     }
   }, [open, defaultJobType]);
 
@@ -117,6 +123,10 @@ export function JobLaunchDialog({ open, onOpenChange, defaultJobType }: JobLaunc
           years: parsedYears.length ? parsedYears : undefined,
           available_only: availableOnly,
           max_pages: maxPages ? Number(maxPages) : undefined,
+        }),
+        ...(jobType === "email_lookup" && {
+          max_lookups: maxLookups ? Number(maxLookups) : undefined,
+          force_reenrich: forceReenrich || undefined,
         }),
       };
       return api.jobs.create({
@@ -281,6 +291,32 @@ export function JobLaunchDialog({ open, onOpenChange, defaultJobType }: JobLaunc
                 <p className="text-[11px] text-muted-foreground">
                   Stop after N pages. With filters applied, 5–15 is usually enough.
                 </p>
+              </div>
+            )}
+            {showField("maxLookups") && (
+              <div className="space-y-1.5">
+                <Label>Max Hunter lookups</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={500}
+                  value={maxLookups}
+                  onChange={(e) => setMaxLookups(e.target.value)}
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Hard cap on Hunter API calls this run. Free tier = 25/month.
+                </p>
+              </div>
+            )}
+            {showField("forceReenrich") && (
+              <div className="space-y-1.5">
+                <Label>Force re-enrich</Label>
+                <div className="flex h-10 items-center gap-2 rounded-md border border-input bg-background px-3">
+                  <Switch checked={forceReenrich} onCheckedChange={setForceReenrich} />
+                  <span className="text-xs text-muted-foreground">
+                    {forceReenrich ? "Re-query contacts enriched in last 90 days" : "Skip recently enriched contacts"}
+                  </span>
+                </div>
               </div>
             )}
             {showField("keywords") && (
