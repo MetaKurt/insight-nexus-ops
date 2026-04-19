@@ -50,7 +50,7 @@ export const jobTypeCatalog: JobTypeDefinition[] = [
     description: "For contacts missing an email, query Hunter.io's Email Finder. Captures email, LinkedIn, Twitter, verification status, and source URLs. Skips contacts enriched in the last 90 days unless force_reenrich is set.",
     category: "enrichment",
     defaultPriority: "normal",
-    fields: ["projectId", "notes"],
+    fields: ["projectId", "maxLookups", "forceReenrich", "notes"],
   },
   {
     id: "retry_failed_records",

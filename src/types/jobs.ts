@@ -38,6 +38,8 @@ export interface JobTypeDefinition {
     | "years"
     | "availableOnly"
     | "maxPages"
+    | "maxLookups"
+    | "forceReenrich"
   >;
 }
 
@@ -54,6 +56,9 @@ export interface JobPayload {
   years?: number[];
   available_only?: boolean;
   max_pages?: number;
+  // email_lookup specific
+  max_lookups?: number;
+  force_reenrich?: boolean;
 }
 
 export interface JobTimelineEvent {
