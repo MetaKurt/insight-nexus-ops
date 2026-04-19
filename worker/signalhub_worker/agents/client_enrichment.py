@@ -60,7 +60,7 @@ def clean_text(s: Optional[str]) -> Optional[str]:
 class ClientEnrichmentAgent(BaseAgent):
     job_type = "client_enrichment"
 
-    AGENT_VERSION = "2026-04-19.v2-section-scope"
+    AGENT_VERSION = "2026-04-19.v3-row-scope-and-co-organizers"
 
     DEFAULT_MAX_FINDINGS = 200
     DEFAULT_MAX_CONTACTS = 1000
@@ -298,53 +298,56 @@ class ClientEnrichmentAgent(BaseAgent):
             """
             () => {
               const out = [];
+              const seen = new Set();
 
-              // The "Organizing team" heading is an h3/h4. The cards are in
-              // its sibling section, each containing a profile link + the
-              // person's role line ("Organizer", "Co-organizer", etc.).
+              // The "Organizing team" heading lives in a left col-lg-3.
+              // The cards live in a SIBLING col-lg-6 inside the SAME parent
+              // .row. So walk up to the nearest `.row` and search there.
               const headings = Array.from(document.querySelectorAll('h2,h3,h4'));
               const orgHeading = headings.find(h =>
                 /organizing team/i.test((h.innerText || '').trim())
               );
               if (!orgHeading) return out;
 
-              // The heading sits in a left-side column (`.col-lg-3`) while
-              // the organizer cards live in a sibling column (`.col-lg-6`)
-              // inside the SAME `.section` row. Walk UP to the nearest
-              // `.section` (or `.row`) and search the whole subtree.
-              let container = orgHeading.closest('.section') ||
-                              orgHeading.closest('.row') ||
-                              orgHeading.parentElement;
-              if (!container) return out;
+              // Walk up until we find a .row that contains MORE than just
+              // the heading column (i.e. the row that also holds the cards).
+              let container = orgHeading.parentElement;
+              while (container && container !== document.body) {
+                if (container.classList && container.classList.contains('row')) {
+                  // Make sure this row has the organizer content too
+                  if (container.querySelector('a[href*="/profiles/"]') ||
+                      container.querySelector('ul.sl, .media')) {
+                    break;
+                  }
+                }
+                container = container.parentElement;
+              }
+              if (!container) container = orgHeading.closest('.section') || document.body;
 
-              // Find every profile link inside this container — TED renders
-              // each organizer as `<a href="/profiles/{id}/about">`.
-              const links = Array.from(
+              // ── Pattern A: lead organizer(s) with profile links ──
+              // <div class='media'> <a href="/profiles/123/about">Name</a>
+              //   <strong>City, Country</strong> <strong>Organizer</strong>
+              const profileLinks = Array.from(
                 container.querySelectorAll('a[href*="/profiles/"]')
               );
-
-              const seen = new Set();
-              links.forEach(a => {
+              profileLinks.forEach(a => {
                 const href = a.getAttribute('href') || '';
                 if (!href.includes('/profiles/')) return;
                 const profileUrl = href.startsWith('http')
                   ? href
                   : 'https://www.ted.com' + href;
-                if (seen.has(profileUrl)) return;
-                seen.add(profileUrl);
+                const key = 'p:' + profileUrl;
+                if (seen.has(key)) return;
 
-                // Find the card wrapping this link — usually the closest
-                // div/li/section with both a heading and a role line.
-                const card = a.closest('div, li, section, article') || a.parentElement;
-                const name = (a.innerText || '').trim();
+                const name = (a.innerText || '').replace(/\\s+/g, ' ').trim();
+                if (!name) return;
+                seen.add(key);
 
-                // Role and location lines are <strong> tags within the card.
+                const card = a.closest('.media, div, li, section, article') || a.parentElement;
                 let role = '';
                 let location = '';
                 if (card) {
                   const strongs = Array.from(card.querySelectorAll('strong, b'));
-                  // Heuristic: the location line tends to contain a comma
-                  // and the role line is a single short phrase.
                   for (const s of strongs) {
                     const t = (s.innerText || '').trim();
                     if (!t) continue;
@@ -358,13 +361,40 @@ class ClientEnrichmentAgent(BaseAgent):
                     }
                   }
                 }
-
-                // Photo URL
                 let photo = '';
                 const img = card ? card.querySelector('img') : null;
                 if (img) photo = img.getAttribute('src') || '';
 
-                out.push({ name, profile_url: profileUrl, role, location, photo_url: photo });
+                out.push({ name, profile_url: profileUrl, role: role || 'Organizer', location, photo_url: photo });
+              });
+
+              // ── Pattern B: co-organizers WITHOUT profile links ──
+              // <ul class='sl'> <li> <h6>Name</h6> <em>City, Country</em> </li>
+              const coLists = Array.from(container.querySelectorAll('ul.sl, ul.row'));
+              coLists.forEach(ul => {
+                const items = Array.from(ul.querySelectorAll('li'));
+                items.forEach(li => {
+                  // Skip if this li contains a profile link (already captured above)
+                  if (li.querySelector('a[href*="/profiles/"]')) return;
+                  const h = li.querySelector('h6, h5, h4, strong');
+                  if (!h) return;
+                  const name = (h.innerText || '').replace(/\\s+/g, ' ').trim();
+                  if (!name || name.length > 80) return;
+                  const key = 'n:' + name.toLowerCase();
+                  if (seen.has(key)) return;
+                  seen.add(key);
+
+                  const em = li.querySelector('em');
+                  const location = em ? (em.innerText || '').trim() : '';
+
+                  out.push({
+                    name,
+                    profile_url: '',
+                    role: 'Co-organizer',
+                    location,
+                    photo_url: ''
+                  });
+                });
               });
 
               return out;
