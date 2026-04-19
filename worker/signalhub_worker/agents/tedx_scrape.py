@@ -189,7 +189,7 @@ class TedxScrapeAgent(BaseAgent):
     DEFAULT_YEARS = [2026, 2027]
     # Bump this whenever the agent logic changes so logs make it obvious
     # which version is actually executing on the worker machine.
-    AGENT_VERSION = "2026-04-19.table-parser-v5-real-query-fix"
+    AGENT_VERSION = "2026-04-19.v6-clean-strings"
 
     async def run(self, payload: dict, ctx: AgentContext) -> AgentResult:
         # Print the file path + version FIRST so we can always tell which
