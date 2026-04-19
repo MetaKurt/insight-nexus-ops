@@ -5,6 +5,14 @@ const ago = (mins: number) => new Date(now - mins * 60_000).toISOString();
 
 export const jobTypeCatalog: JobTypeDefinition[] = [
   {
+    id: "hello",
+    label: "Hello (smoke test)",
+    description: "Trivial pipeline test — worker logs a few messages, sleeps 3s, and reports success. Use to verify a worker is alive end-to-end.",
+    category: "diagnostic",
+    defaultPriority: "normal",
+    fields: ["notes"],
+  },
+  {
     id: "tedx_scrape",
     label: "Run TEDx Scrape",
     description: "Scan ted.com/tedx for upcoming events and organizer contact info.",

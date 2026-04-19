@@ -8,6 +8,7 @@ import {
   RadioTower,
   Download,
   ShieldCheck,
+  Heart,
 } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,6 +20,7 @@ import type { JobType } from "@/types/jobs";
 import { cn } from "@/lib/utils";
 
 const iconMap: Record<JobType, typeof Sparkles> = {
+  hello: Heart,
   tedx_scrape: Sparkles,
   hotel_lead_research: Building2,
   nvrland_research: Gem,
@@ -33,6 +35,7 @@ const categoryTone: Record<string, string> = {
   enrichment: "border-info/30 bg-info/5 text-info",
   maintenance: "border-warning/30 bg-warning/5 text-warning",
   export: "border-muted text-muted-foreground",
+  diagnostic: "border-success/30 bg-success/5 text-success",
 };
 
 export function JobLaunchPanel() {
