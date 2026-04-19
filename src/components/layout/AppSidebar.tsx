@@ -11,6 +11,7 @@ import {
   Settings,
   Radar,
   Rocket,
+  Target,
 } from "lucide-react";
 
 import {
@@ -38,6 +39,7 @@ const mainNav = [
 ];
 
 const opsNav = [
+  { title: "Missions", url: "/missions", icon: Target },
   { title: "Control Center", url: "/control-center", icon: Rocket },
   { title: "Review Queue", url: "/review", icon: Inbox },
   { title: "Errors", url: "/errors", icon: AlertTriangle },
