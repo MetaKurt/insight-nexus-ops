@@ -5,7 +5,7 @@
 //   - everything else                → just status
 
 import { Link } from "react-router-dom";
-import { AlertTriangle, ArrowRight, CheckCircle2, ExternalLink, PlayCircle } from "lucide-react";
+import { AlertTriangle, ArrowRight, CheckCircle2, ExternalLink, PlayCircle, RotateCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -25,6 +25,7 @@ interface Props {
   canQueue: boolean;
   onQueue: () => void;
   onApprove: () => void;
+  onRerun?: () => void;
   busy: boolean;
 }
 
