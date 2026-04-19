@@ -1,6 +1,6 @@
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Mail, Phone, Globe, Linkedin, Users } from "lucide-react";
+import { ArrowLeft, Mail, Phone, Globe, Linkedin, Users, Calendar } from "lucide-react";
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/PageHeader";
@@ -62,6 +62,19 @@ export default function ContactDetail() {
         <Card className="bg-surface-elevated border-border/60">
           <CardHeader><CardTitle className="text-base">Source & metadata</CardTitle></CardHeader>
           <CardContent className="space-y-3 text-sm">
+            {c.event && (
+              <div>
+                <p className="text-xs uppercase text-muted-foreground">Event</p>
+                <Link to={`/records/${c.event.id}`} className="flex items-center gap-2 text-primary hover:underline">
+                  <Calendar className="h-4 w-4" /> {c.event.name}
+                </Link>
+                {(c.event.date || c.event.location) && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {[c.event.date, c.event.location].filter(Boolean).join(" · ")}
+                  </p>
+                )}
+              </div>
+            )}
             <div><p className="text-xs uppercase text-muted-foreground">Source</p><p>{c.source}</p></div>
             <div><p className="text-xs uppercase text-muted-foreground">Created</p><p>{new Date(c.createdAt).toLocaleString()}</p></div>
             {c.projectId && <div><p className="text-xs uppercase text-muted-foreground">Project</p><Link to={`/projects/${c.projectId}`} className="text-primary hover:underline">View project</Link></div>}
