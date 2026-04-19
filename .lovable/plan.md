@@ -1,84 +1,54 @@
 
 
-## Root cause: the worker on your machine is running stale code
+## Answering both questions
 
-I dug into the database to verify what actually ran. Here's the smoking gun:
+### 1. "Should I click Approve & continue?"
 
-**Job `6237c875` payload (correct, new schema):**
-```json
-{ "country": "United States", "years": [2026, 2027],
-  "available_only": true, "max_pages": 20, "limit": 300 }
-```
+**Short answer: not yet.** Here's why:
 
-**Job logs (OLD agent behavior):**
-- `Scanning page 1 → https://www.ted.com/tedx/events?sort=newest&page=1`
-  ← no `available=on`, no `country=`, no `year[]=` in the URL
-- `Page 1: 44 cards seen, 0 kept`
-  ← the new agent never says "cards seen" — this string was deleted
+- Approve will mark Stage 1 done and auto-queue Stage 2 (`Enrich Organizer Contacts`, job type `client_enrichment`).
+- I checked the worker — only two agents exist on disk: `hello` and `tedx_scrape`. There is **no `client_enrichment` agent**. So Stage 2 will queue, no worker will claim it, and it'll sit pending forever.
+- You can still click Approve later — it does nothing destructive — but right now it'll just create a stuck job.
 
-**My rewritten `worker/signalhub_worker/agents/tedx_scrape.py` (in this Lovable repo):**
-- Builds URLs like `?available=on&country=United+States&year[]=2026&year[]=2027&page=N`
-- Logs `Page N: X rows | kept Y | skipped past=A no_space=B …`
-- Never uses the phrase "cards seen"
+### 2. "Where are the scrapes it just pulled back?"
 
-**Conclusion:** Your Ubuntu machine has a separate clone of the `worker/` folder. When I "edited" the file last turn, I edited it **here in the Lovable repo**, but your local Ubuntu copy was never updated. Restarting the worker re-loaded the same old file.
+**They're in the database (20 rows in `findings`), but the Records page can't show them.** Two reasons:
 
-The DB `notes` field (`"Found 0 TEDx events…"`) looks like the new summary, but it was actually written by the old agent code — the old version's summary string just happens to be similar. The decisive evidence is the URL with no filters and the "cards seen" log text.
+- `src/pages/Records.tsx` reads from mock data, not Supabase (`api.findings.list` returns hardcoded fixtures, same pattern as Contacts/Sources/Errors — only Control Center is wired up).
+- Even when wired, the source-type filter doesn't include `tedx_events`, so the rows would be filtered out.
 
-## The fix is two minutes of git, no code changes needed
+I also spotted two data-quality bugs in the rows we just inserted:
+- **Title has invisible soft-hyphens**: stored as `­T­E­Dx­Boca­Raton` (U+00AD chars between every letter — TED puts them there for line-breaking; we should strip them).
+- **City field is concatenated**: stored as `"JacksonvilleUnited States"` — the parser glued city + country without separation, and `state` is null.
 
-You need to pull the latest `worker/` code from the Lovable project to your Ubuntu machine. Two paths:
+## Plan — three small fixes, in priority order
 
-### Option A — git pull (if your Ubuntu repo is the same git repo as this Lovable project)
+**Step 1 — Wire the Records page to real Supabase findings** (so you can see what the scraper produced)
+- Replace the mock `api.findings.list` call with a real Supabase query against the `findings` table.
+- Add `tedx_events` to the source-type filter dropdown.
+- Map the DB columns (`source_url`, `source_type`, `data` jsonb) to the existing `Finding` UI shape; show city/state from `data` jsonb in the table.
+- Update `RecordDetail.tsx` similarly so you can click into a row.
 
-```bash
-cd ~/insight-nexus-ops      # or wherever your repo lives on Ubuntu
-git pull
-cd worker
-# restart the worker
-```
+**Step 2 — Fix the two scraper data bugs** (in `worker/tedx_scrape.py`, requires a `git pull` + worker restart on Ubuntu)
+- Strip U+00AD (soft hyphen) and other zero-width chars from titles before insert.
+- Fix the city/state parser: split on the `<br>` boundary properly so `data.city = "Jacksonville"` and `data.state = "Florida"` (not country-suffixed).
+- Bump `AGENT_VERSION` to `v6-clean-strings` so we can confirm the new code is running.
+- Optionally backfill the existing 20 rows with a one-shot SQL UPDATE that cleans titles and re-splits the city field — saves you re-scraping.
 
-### Option B — rsync / scp the file (if the worker folder isn't in git on Ubuntu)
-
-From your Ubuntu machine, copy the freshest `tedx_scrape.py` from wherever you downloaded the Lovable export, e.g.:
-```bash
-cp /path/to/fresh/insight-nexus-ops/worker/signalhub_worker/agents/tedx_scrape.py \
-   ~/insight-nexus-ops/worker/signalhub_worker/agents/tedx_scrape.py
-```
-Then restart.
-
-### How to verify the new code is running
-
-After restarting, queue a fresh `tedx_scrape` job. Watch for one of these signals — any of them means the new code is active:
-
-1. The URL printed in the logs contains `available=on&country=United+States&year[]=2026`
-2. The per-page log line says `Page 1: N rows | kept …` instead of `cards seen`
-3. The first log line says `TEDx scrape — country='United States' years=[2026, 2027] …` instead of `TEDx scrape starting — years 2026/2027, US only …`
-
-If any of those don't show up, the file on disk is still the old one.
-
-## What I'll do in this turn (when you switch me to default mode)
-
-This is a deployment problem, not a code problem — the code in the repo is already correct. So I have two small things to add that will make this easier next time:
-
-1. **Print the agent's file path + a version marker on startup**
-   Add one line in `tedx_scrape.py`'s `run()` that logs the agent's file path. That way, both the worker terminal AND the database `job_logs` will tell us exactly which file is executing. No more "is the new code actually running?" guessing.
-
-2. **Add a "Worker code version" banner to the worker README**
-   A short "Pulling updates" section so the manual git-pull-and-restart step is documented next to the run instructions.
-
-3. *(Optional)* **Show the URL it's about to fetch in the very first log line of any TEDx run** — already done in the new code, but I'll move it earlier so it appears before any DOM work, so failures are easier to spot.
+**Step 3 — Tell you when Stage 2 is safe to approve**
+- I'll add a note to your mission/MissionStageCard UI: if a stage's `job_type` has no registered worker agent, show a small warning ("No worker agent registered for `client_enrichment` — approving will queue a job that won't run yet").
+- Building the actual `client_enrichment` agent is a separate, larger task — let me know when you want to tackle it and I'll plan it (it'd visit each TEDx event page and pull organizer names/emails/social links).
 
 ## What I will NOT do
 
-- I won't touch the scraping logic again. I confirmed against the live TED.com HTML that the rewritten parser, URL builder, and table selectors are correct. The 0-results problem is 100% caused by the old file still being on your machine.
-- No DB migrations, no new tables, no new agents.
+- Won't build the `client_enrichment` agent in this turn — it's a meaty task and you'll want to decide what fields to extract first.
+- Won't change the mission Approve flow itself — it works correctly.
+- Won't touch the worker process or run `git pull` for you — that's still your manual step.
 
-## What you do
+## Your steps after I make the changes
 
-After I make those small changes:
-1. Pull the latest worker code to your Ubuntu machine (Option A or B above)
-2. Restart `python -m signalhub_worker`
-3. Create a fresh mission via `/missions/new`
-4. The first stage's logs should show the `available=on&country=United+States&year[]=2026` URL and start returning real findings
+1. Refresh the app → go to **Records** → you should see all 20 Florida TEDx rows with city/state filters.
+2. On Ubuntu: `git pull && python -m signalhub_worker` to load the cleaned-string scraper.
+3. Run the backfill SQL I'll give you (one paste into Supabase SQL editor) to fix the existing 20 rows' titles & cities.
+4. Hold off on **Approve & continue** until we build the enrichment agent — I'll plan that next when you're ready.
 
