@@ -26,10 +26,11 @@ const map: Record<string, Variant> = {
   flagged: "warning",
   duplicate: "neutral",
   complete: "success",
-  // Run status
+  // Run / job status
   queued: "neutral",
   running: "info",
   success: "success",
+  succeeded: "success",
   partial: "warning",
   failed: "danger",
   cancelled: "neutral",
@@ -39,16 +40,22 @@ const map: Record<string, Variant> = {
   replied: "success",
   bounced: "danger",
   do_not_contact: "danger",
-  // Source health
+  // Source / worker health
   healthy: "success",
+  online: "success",
+  idle: "neutral",
+  busy: "info",
   degraded: "warning",
+  offline: "neutral",
   down: "danger",
   unknown: "neutral",
-  // Severity
-  low: "info",
+  // Severity / priority
+  low: "neutral",
   medium: "warning",
-  high: "danger",
+  high: "warning",
+  urgent: "danger",
   critical: "danger",
+  normal: "info",
 };
 
 export function StatusBadge({ status, className }: { status: string; className?: string }) {
