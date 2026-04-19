@@ -293,6 +293,32 @@ export function JobLaunchDialog({ open, onOpenChange, defaultJobType }: JobLaunc
                 </p>
               </div>
             )}
+            {showField("maxLookups") && (
+              <div className="space-y-1.5">
+                <Label>Max Hunter lookups</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={500}
+                  value={maxLookups}
+                  onChange={(e) => setMaxLookups(e.target.value)}
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Hard cap on Hunter API calls this run. Free tier = 25/month.
+                </p>
+              </div>
+            )}
+            {showField("forceReenrich") && (
+              <div className="space-y-1.5">
+                <Label>Force re-enrich</Label>
+                <div className="flex h-10 items-center gap-2 rounded-md border border-input bg-background px-3">
+                  <Switch checked={forceReenrich} onCheckedChange={setForceReenrich} />
+                  <span className="text-xs text-muted-foreground">
+                    {forceReenrich ? "Re-query contacts enriched in last 90 days" : "Skip recently enriched contacts"}
+                  </span>
+                </div>
+              </div>
+            )}
             {showField("keywords") && (
               <div className="space-y-1.5 col-span-2">
                 <Label>Keywords</Label>
