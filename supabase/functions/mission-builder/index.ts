@@ -63,9 +63,15 @@ tedx_scrape:
     "available_only": true,           // only events with spaces available
     "max_pages": 10,                  // listing pages to scan (1-100), 5-15 is plenty
     "limit": 500,                     // hard cap on findings created
-    "keywords": "youth, women"        // optional comma-separated name filter
+    "location": "Florida",            // OPTIONAL: US state or city to narrow results (matches against scraped state/city)
+    "keywords": "youth, women"        // OPTIONAL: comma-separated tokens that must appear in the EVENT NAME (e.g. "youth", "women")
   }
-  NOTE: do NOT use "location", "year_min", "year_max", or "status" — those are legacy keys.
+  CRITICAL RULES for tedx_scrape:
+  - If the user names a US state (e.g. "Florida", "California"), put it in "location" — NEVER in "keywords".
+    Event names like "TEDxBrooklyn" or "TEDxYouth@Tampa" rarely contain state names, so a "Florida" keyword filter would drop everything.
+  - "keywords" is ONLY for words you expect to literally appear in the event name itself (e.g. "youth", "women", "tech").
+  - If the user has no name preference, OMIT "keywords" entirely.
+  - Do NOT use "year_min", "year_max", or "status" — those are legacy keys.
 
 hotel_lead_research / nvrland_research / client_enrichment:
   { "location": "...", "keywords": "...", "limit": 100, "notes": "..." }
