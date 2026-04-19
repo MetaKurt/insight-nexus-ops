@@ -6,6 +6,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { AuthProvider } from "@/hooks/useAuth";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+import AuthPage from "./pages/Auth";
 
 import Dashboard from "./pages/Dashboard";
 import Projects from "./pages/Projects";
@@ -31,31 +34,36 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner theme="dark" position="top-right" />
-      <WorkspaceProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route element={<AppLayout />}>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/projects" element={<Projects />} />
-              <Route path="/projects/:id" element={<ProjectDetail />} />
-              <Route path="/records" element={<Records />} />
-              <Route path="/records/:id" element={<RecordDetail />} />
-              <Route path="/contacts" element={<Contacts />} />
-              <Route path="/contacts/:id" element={<ContactDetail />} />
-              <Route path="/runs" element={<Runs />} />
-              <Route path="/runs/:id" element={<RunDetail />} />
-              <Route path="/sources" element={<Sources />} />
-              <Route path="/review" element={<ReviewQueue />} />
-              <Route path="/errors" element={<Errors />} />
-              <Route path="/control-center" element={<ControlCenter />} />
-              <Route path="/control-center/jobs/:id" element={<JobDetail />} />
-              <Route path="/settings" element={<SettingsPage />} />
-            </Route>
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </WorkspaceProvider>
+      <BrowserRouter>
+        <AuthProvider>
+          <WorkspaceProvider>
+            <Routes>
+              <Route path="/auth" element={<AuthPage />} />
+              <Route element={<ProtectedRoute />}>
+                <Route element={<AppLayout />}>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/projects" element={<Projects />} />
+                  <Route path="/projects/:id" element={<ProjectDetail />} />
+                  <Route path="/records" element={<Records />} />
+                  <Route path="/records/:id" element={<RecordDetail />} />
+                  <Route path="/contacts" element={<Contacts />} />
+                  <Route path="/contacts/:id" element={<ContactDetail />} />
+                  <Route path="/runs" element={<Runs />} />
+                  <Route path="/runs/:id" element={<RunDetail />} />
+                  <Route path="/sources" element={<Sources />} />
+                  <Route path="/review" element={<ReviewQueue />} />
+                  <Route path="/errors" element={<Errors />} />
+                  <Route path="/control-center" element={<ControlCenter />} />
+                  <Route path="/control-center/jobs/:id" element={<JobDetail />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                </Route>
+              </Route>
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </WorkspaceProvider>
+        </AuthProvider>
+      </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
 );
