@@ -1,5 +1,13 @@
-// API service layer — currently returns mock data, but signatures match what
-// Supabase queries will look like once the backend is connected.
+// API service layer.
+//
+// Frontend-only resources (workspaces, projects, findings, contacts, runs,
+// sources, errors, notes) still use mock data — those pages haven't been
+// wired to Supabase yet.
+//
+// Control Center resources (jobs, job_logs, workers) are real:
+//   - reads/writes go to Supabase tables of the same name
+//   - workspace filtering is bypassed (the `jobs` table has no workspace_id)
+//   - mutations are handled via SECURITY DEFINER RPCs where appropriate
 
 import type {
   Contact,
@@ -22,13 +30,20 @@ import {
   sources as mockSources,
   workspaces as mockWorkspaces,
 } from "@/mocks/data";
-import { jobLogs as mockJobLogs, jobs as mockJobs, workers as mockWorkers } from "@/mocks/jobs";
+import { supabase } from "@/integrations/supabase/client";
+import { priorityToInt, rowToJob, rowToLog, rowToWorker } from "./jobsMapping";
 
 const delay = <T,>(value: T, ms = 250): Promise<T> =>
   new Promise((resolve) => setTimeout(() => resolve(value), ms));
 
 const filterByWorkspace = <T extends { workspaceId: string }>(items: T[], workspaceId?: string | null) =>
   !workspaceId || workspaceId === "all" ? items : items.filter((i) => i.workspaceId === workspaceId);
+
+// Helper: enrich a list of jobs with their worker machine_name in one extra query.
+const attachWorkerNames = async (rows: Awaited<ReturnType<typeof supabase.from<"jobs", never>["select"]>>["data"]) => {
+  // No-op stub for when rows is null/empty; real impl below.
+  return rows;
+};
 
 export const api = {
   workspaces: {
@@ -70,17 +85,52 @@ export const api = {
     listForEntity: (entityType: Note["entityType"], entityId: string): Promise<Note[]> =>
       delay(mockNotes.filter((n) => n.entityType === entityType && n.entityId === entityId)),
   },
-  // ── Control Center ────────────────────────────────────────────────────
-  // These mock methods mirror the shape of the future Supabase queries:
-  //   jobs:    select/insert/update on `jobs` table
-  //   logs:    select on `job_logs` table joined to a job
-  //   workers: select on `workers` table (heartbeat-driven)
+
+  // ── Control Center (live Supabase) ────────────────────────────────────
   jobs: {
-    list: (workspaceId?: string | null): Promise<Job[]> =>
-      delay(filterByWorkspace(mockJobs, workspaceId)),
-    get: (id: string): Promise<Job | undefined> =>
-      delay(mockJobs.find((j) => j.id === id)),
-    create: (input: {
+    list: async (_workspaceId?: string | null): Promise<Job[]> => {
+      const { data: jobsData, error } = await supabase
+        .from("jobs")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      const rows = jobsData ?? [];
+
+      // Fetch the involved workers in one round-trip so we can show machine names.
+      const workerIds = Array.from(new Set(rows.map((r) => r.worker_id).filter(Boolean) as string[]));
+      let workerMap = new Map<string, string>();
+      if (workerIds.length) {
+        const { data: workers } = await supabase
+          .from("workers")
+          .select("id, machine_name")
+          .in("id", workerIds);
+        workerMap = new Map((workers ?? []).map((w) => [w.id, w.machine_name]));
+      }
+      return rows.map((r) => rowToJob(r, workerMap.get(r.worker_id ?? "")));
+    },
+
+    get: async (id: string): Promise<Job | undefined> => {
+      const { data, error } = await supabase
+        .from("jobs")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return undefined;
+      let workerName: string | undefined;
+      if (data.worker_id) {
+        const { data: w } = await supabase
+          .from("workers")
+          .select("machine_name")
+          .eq("id", data.worker_id)
+          .maybeSingle();
+        workerName = w?.machine_name ?? undefined;
+      }
+      return rowToJob(data, workerName);
+    },
+
+    create: async (input: {
       workspaceId: string;
       projectId?: string;
       type: JobType;
@@ -88,59 +138,95 @@ export const api = {
       payload: JobPayload;
       requestedBy: string;
     }): Promise<Job> => {
-      const job: Job = {
-        id: `j-${Math.floor(Math.random() * 9000 + 1000)}`,
-        workspaceId: input.workspaceId,
-        projectId: input.projectId,
-        type: input.type,
-        status: "queued",
-        priority: input.priority,
-        payload: input.payload,
-        requestedBy: input.requestedBy,
-        createdAt: new Date().toISOString(),
-        timeline: [{ at: new Date().toISOString(), status: "created", message: "Job request created" }],
-      };
-      mockJobs.unshift(job);
-      return delay(job, 200);
+      const { data, error } = await supabase
+        .from("jobs")
+        .insert({
+          job_type: input.type,
+          status: "queued",
+          priority: priorityToInt(input.priority),
+          project_id: input.projectId ?? null,
+          payload: input.payload as never,
+          requested_by: input.requestedBy,
+        })
+        .select("*")
+        .single();
+      if (error) throw error;
+      return rowToJob(data);
     },
-    cancel: (id: string): Promise<void> => {
-      const j = mockJobs.find((x) => x.id === id);
-      if (j && (j.status === "queued" || j.status === "running")) {
-        j.status = "cancelled";
-        j.completedAt = new Date().toISOString();
-        j.timeline.push({ at: j.completedAt, status: "cancelled", message: "Cancelled by user" });
-      }
-      return delay(undefined, 150);
+
+    cancel: async (id: string): Promise<void> => {
+      // Use complete_job RPC so worker assignment is also released.
+      const { error } = await supabase.rpc("complete_job", {
+        p_job_id: id,
+        p_status: "cancelled",
+        p_records_created: 0,
+        p_errors_count: 0,
+        p_notes: "Cancelled by user from dashboard",
+      });
+      if (error) throw error;
     },
-    retry: (id: string): Promise<Job | undefined> => {
-      const j = mockJobs.find((x) => x.id === id);
-      if (!j) return delay(undefined);
-      const clone: Job = {
-        ...j,
-        id: `j-${Math.floor(Math.random() * 9000 + 1000)}`,
-        status: "queued",
-        startedAt: undefined,
-        completedAt: undefined,
-        durationMs: undefined,
-        recordsCreated: undefined,
-        errorsCount: undefined,
-        resultSummary: undefined,
-        errorSummary: undefined,
-        workerId: undefined,
-        workerName: undefined,
-        createdAt: new Date().toISOString(),
-        timeline: [{ at: new Date().toISOString(), status: "created", message: `Retry of ${j.id}` }],
-      };
-      mockJobs.unshift(clone);
-      return delay(clone, 200);
+
+    retry: async (id: string): Promise<Job | undefined> => {
+      const { data: orig, error: getErr } = await supabase
+        .from("jobs")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+      if (getErr) throw getErr;
+      if (!orig) return undefined;
+
+      const { data, error } = await supabase
+        .from("jobs")
+        .insert({
+          job_type: orig.job_type,
+          status: "queued",
+          priority: orig.priority,
+          project_id: orig.project_id,
+          payload: orig.payload,
+          requested_by: orig.requested_by ?? "retry",
+          notes: `Retry of ${id}`,
+        })
+        .select("*")
+        .single();
+      if (error) throw error;
+      return rowToJob(data);
     },
   },
+
   jobLogs: {
-    listForJob: (jobId: string): Promise<JobLog[]> =>
-      delay(mockJobLogs.filter((l) => l.jobId === jobId)),
-    listAll: (): Promise<JobLog[]> => delay(mockJobLogs),
+    listForJob: async (jobId: string): Promise<JobLog[]> => {
+      const { data, error } = await supabase
+        .from("job_logs")
+        .select("*")
+        .eq("job_id", jobId)
+        .order("created_at", { ascending: true })
+        .limit(2000);
+      if (error) throw error;
+      return (data ?? []).map(rowToLog);
+    },
+
+    listAll: async (): Promise<JobLog[]> => {
+      const { data, error } = await supabase
+        .from("job_logs")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      return (data ?? []).map(rowToLog);
+    },
   },
+
   workers: {
-    list: (): Promise<Worker[]> => delay(mockWorkers),
+    list: async (): Promise<Worker[]> => {
+      const { data, error } = await supabase
+        .from("workers")
+        .select("*")
+        .order("machine_name", { ascending: true });
+      if (error) throw error;
+      return (data ?? []).map((w) => rowToWorker(w));
+    },
   },
 };
+
+// Suppress unused-helper lint while keeping the helper available for future enrichment.
+void attachWorkerNames;
