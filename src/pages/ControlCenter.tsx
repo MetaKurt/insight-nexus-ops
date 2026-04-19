@@ -23,8 +23,10 @@ import { LogStream } from "@/components/control-center/LogStream";
 import { api } from "@/lib/api";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { jobTypeCatalog } from "@/mocks/jobs";
+import { useJobsRealtime } from "@/hooks/useJobsRealtime";
 
 export default function ControlCenter() {
+  useJobsRealtime();
   const { workspaceId } = useWorkspace();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");

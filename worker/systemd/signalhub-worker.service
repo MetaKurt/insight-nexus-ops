@@ -1,0 +1,26 @@
+[Unit]
+Description=SignalHub job worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# EDIT THESE:
+User=ubuntu
+WorkingDirectory=/home/ubuntu/signalhub-worker
+EnvironmentFile=/home/ubuntu/signalhub-worker/.env
+ExecStart=/home/ubuntu/signalhub-worker/.venv/bin/python -m signalhub_worker
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/ubuntu/signalhub-worker
+
+[Install]
+WantedBy=multi-user.target

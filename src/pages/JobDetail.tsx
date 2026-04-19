@@ -27,6 +27,7 @@ import { JobLaunchDialog } from "@/components/control-center/JobLaunchDialog";
 import { api } from "@/lib/api";
 import { jobTypeCatalog } from "@/mocks/jobs";
 import { useState } from "react";
+import { useJobsRealtime } from "@/hooks/useJobsRealtime";
 import type { JobTimelineEvent } from "@/types/jobs";
 import { cn } from "@/lib/utils";
 
@@ -62,6 +63,7 @@ export default function JobDetail() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [duplicateOpen, setDuplicateOpen] = useState(false);
+  useJobsRealtime(id);
 
   const { data: job, isLoading } = useQuery({
     queryKey: ["job", id],
