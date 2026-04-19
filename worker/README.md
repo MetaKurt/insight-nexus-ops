@@ -83,7 +83,36 @@ sudo systemctl enable --now signalhub-worker
 sudo journalctl -u signalhub-worker -f                  # tail logs
 ```
 
-## Adding a new agent
+## Pulling updates (IMPORTANT)
+
+The dashboard repo and this worker share the same git repo, but the worker
+runs from a **separate clone on your server**. Editing code in Lovable does
+**not** automatically update the file on your worker machine. After any
+change to `worker/`, you must pull and restart:
+
+```bash
+cd ~/signalhub-worker          # or wherever you cloned the repo
+git pull
+# if requirements.txt changed:
+source .venv/bin/activate && pip install -r requirements.txt
+# then restart:
+#   foreground:  Ctrl+C, then `python -m signalhub_worker`
+#   systemd:     sudo systemctl restart signalhub-worker
+```
+
+### How to confirm the new code is actually running
+
+Every agent logs its **file path + version marker** as the first line of
+each job. After restarting, queue a fresh job and check the log panel — you
+should see something like:
+
+```
+tedx_scrape agent v=2026-04-19.table-parser-v1 file=/home/ubuntu/signalhub-worker/worker/signalhub_worker/agents/tedx_scrape.py
+```
+
+If the version string doesn't match what's in the repo, the worker is
+still running stale code (most likely a second worker process or a systemd
+service is still up). Run `ps aux | grep signalhub_worker` to find it.
 
 1. Create `signalhub_worker/agents/my_new_agent.py`:
 
