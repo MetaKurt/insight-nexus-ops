@@ -47,8 +47,13 @@ export function JobLaunchDialog({ open, onOpenChange, defaultJobType }: JobLaunc
   const [keywords, setKeywords] = useState("");
   const [location, setLocation] = useState("");
   const [urls, setUrls] = useState("");
-  const [limit, setLimit] = useState<string>("100");
+  const [limit, setLimit] = useState<string>("500");
   const [notes, setNotes] = useState("");
+  // tedx_scrape specific
+  const [country, setCountry] = useState("United States");
+  const [yearsStr, setYearsStr] = useState("2026, 2027");
+  const [availableOnly, setAvailableOnly] = useState(true);
+  const [maxPages, setMaxPages] = useState<string>("10");
 
   const definition: JobTypeDefinition =
     jobTypeCatalog.find((d) => d.id === jobType) ?? jobTypeCatalog[0];
@@ -66,8 +71,12 @@ export function JobLaunchDialog({ open, onOpenChange, defaultJobType }: JobLaunc
       setKeywords("");
       setLocation("");
       setUrls("");
-      setLimit("100");
+      setLimit(def?.id === "tedx_scrape" ? "500" : "100");
       setNotes("");
+      setCountry("United States");
+      setYearsStr("2026, 2027");
+      setAvailableOnly(true);
+      setMaxPages("10");
     }
   }, [open, defaultJobType]);
 
@@ -89,6 +98,10 @@ export function JobLaunchDialog({ open, onOpenChange, defaultJobType }: JobLaunc
   const { mutate, isPending } = useMutation({
     mutationFn: async () => {
       if (!targetWorkspaceId) throw new Error("Select a workspace or project");
+      const parsedYears = yearsStr
+        .split(",")
+        .map((y) => parseInt(y.trim(), 10))
+        .filter((n) => Number.isFinite(n) && n > 1900 && n < 2100);
       const payload: JobPayload = {
         projectId,
         sourceType: sourceType || undefined,
@@ -99,6 +112,12 @@ export function JobLaunchDialog({ open, onOpenChange, defaultJobType }: JobLaunc
           : undefined,
         limit: limit ? Number(limit) : undefined,
         notes: notes || undefined,
+        ...(jobType === "tedx_scrape" && {
+          country: country || undefined,
+          years: parsedYears.length ? parsedYears : undefined,
+          available_only: availableOnly,
+          max_pages: maxPages ? Number(maxPages) : undefined,
+        }),
       };
       return api.jobs.create({
         workspaceId: targetWorkspaceId,
@@ -210,10 +229,64 @@ export function JobLaunchDialog({ open, onOpenChange, defaultJobType }: JobLaunc
                 <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="e.g. Spain, EU" />
               </div>
             )}
+            {showField("country") && (
+              <div className="space-y-1.5">
+                <Label>Country</Label>
+                <Input
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                  placeholder="United States"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Must match TED's spelling exactly (e.g. "United States", "United Kingdom").
+                </p>
+              </div>
+            )}
+            {showField("years") && (
+              <div className="space-y-1.5">
+                <Label>Years</Label>
+                <Input
+                  value={yearsStr}
+                  onChange={(e) => setYearsStr(e.target.value)}
+                  placeholder="2026, 2027"
+                />
+                <p className="text-[11px] text-muted-foreground">Comma-separated 4-digit years.</p>
+              </div>
+            )}
+            {showField("availableOnly") && (
+              <div className="space-y-1.5">
+                <Label>Spaces available</Label>
+                <Select
+                  value={availableOnly ? "yes" : "no"}
+                  onValueChange={(v) => setAvailableOnly(v === "yes")}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="yes">Only events with spaces available</SelectItem>
+                    <SelectItem value="no">All events</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {showField("maxPages") && (
+              <div className="space-y-1.5">
+                <Label>Max listing pages</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={maxPages}
+                  onChange={(e) => setMaxPages(e.target.value)}
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Stop after N pages. With filters applied, 5–15 is usually enough.
+                </p>
+              </div>
+            )}
             {showField("keywords") && (
               <div className="space-y-1.5 col-span-2">
                 <Label>Keywords</Label>
-                <Input value={keywords} onChange={(e) => setKeywords(e.target.value)} placeholder="comma-separated" />
+                <Input value={keywords} onChange={(e) => setKeywords(e.target.value)} placeholder="comma-separated (optional name filter)" />
               </div>
             )}
             {showField("limit") && (

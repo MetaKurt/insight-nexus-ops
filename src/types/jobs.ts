@@ -33,6 +33,10 @@ export interface JobTypeDefinition {
     | "urls"
     | "limit"
     | "notes"
+    | "country"
+    | "years"
+    | "availableOnly"
+    | "maxPages"
   >;
 }
 
@@ -44,6 +48,11 @@ export interface JobPayload {
   urls?: string[];
   limit?: number;
   notes?: string;
+  // tedx_scrape specific
+  country?: string;
+  years?: number[];
+  available_only?: boolean;
+  max_pages?: number;
 }
 
 export interface JobTimelineEvent {

@@ -15,10 +15,10 @@ export const jobTypeCatalog: JobTypeDefinition[] = [
   {
     id: "tedx_scrape",
     label: "Run TEDx Scrape",
-    description: "Scan ted.com/tedx for upcoming events and organizer contact info.",
+    description: "Scan ted.com/tedx for upcoming events. Filters (country, year, spaces available) are pushed into the URL so the scrape stays fast.",
     category: "research",
     defaultPriority: "normal",
-    fields: ["projectId", "location", "keywords", "limit", "notes"],
+    fields: ["projectId", "country", "years", "availableOnly", "maxPages", "limit", "keywords", "notes"],
   },
   {
     id: "hotel_lead_research",
