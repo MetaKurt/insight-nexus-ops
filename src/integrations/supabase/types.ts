@@ -377,7 +377,90 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      claim_next_job: {
+        Args: { p_job_types?: string[]; p_worker_id: string }
+        Returns: {
+          cancelled_at: string | null
+          completed_at: string | null
+          created_at: string
+          errors_count: number
+          id: string
+          job_type: string
+          notes: string | null
+          payload: Json
+          priority: number
+          project_id: string | null
+          records_created: number
+          requested_by: string | null
+          started_at: string | null
+          status: string
+          worker_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "jobs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      complete_job: {
+        Args: {
+          p_errors_count?: number
+          p_job_id: string
+          p_notes?: string
+          p_records_created?: number
+          p_status: string
+        }
+        Returns: {
+          cancelled_at: string | null
+          completed_at: string | null
+          created_at: string
+          errors_count: number
+          id: string
+          job_type: string
+          notes: string | null
+          payload: Json
+          priority: number
+          project_id: string | null
+          records_created: number
+          requested_by: string | null
+          started_at: string | null
+          status: string
+          worker_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "jobs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      worker_heartbeat: {
+        Args: {
+          p_current_job_id?: string
+          p_environment?: string
+          p_machine_name: string
+          p_status?: string
+          p_version?: string
+        }
+        Returns: {
+          created_at: string
+          current_job_id: string | null
+          environment: string | null
+          id: string
+          last_heartbeat: string | null
+          machine_name: string
+          status: string
+          updated_at: string
+          version: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "workers"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       [_ in never]: never
