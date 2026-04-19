@@ -10,6 +10,7 @@ import {
   AlertTriangle,
   Settings,
   Radar,
+  Rocket,
 } from "lucide-react";
 
 import {
@@ -37,6 +38,7 @@ const mainNav = [
 ];
 
 const opsNav = [
+  { title: "Control Center", url: "/control-center", icon: Rocket },
   { title: "Review Queue", url: "/review", icon: Inbox },
   { title: "Errors", url: "/errors", icon: AlertTriangle },
   { title: "Settings", url: "/settings", icon: Settings },
