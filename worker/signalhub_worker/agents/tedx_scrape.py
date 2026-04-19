@@ -154,7 +154,7 @@ class TedxScrapeAgent(BaseAgent):
     DEFAULT_YEARS = [2026, 2027]
     # Bump this whenever the agent logic changes so logs make it obvious
     # which version is actually executing on the worker machine.
-    AGENT_VERSION = "2026-04-19.table-parser-v2-skip-debug"
+    AGENT_VERSION = "2026-04-19.table-parser-v3-location-cell"
 
     async def run(self, payload: dict, ctx: AgentContext) -> AgentResult:
         # Print the file path + version FIRST so we can always tell which
@@ -454,17 +454,32 @@ class TedxScrapeAgent(BaseAgent):
                 let dateText = cellText(0);
                 let nameText = (link.innerText || '').trim();
                 let locationText = '';
-                let spaceCellHtml = '';
-                let webcastCellHtml = '';
 
-                // Best guess: location is the cell containing a comma but no
-                // month name (months show up in date cell).
-                const monthRe = /(January|February|March|April|May|June|July|August|September|October|November|December)/i;
+                const cleanCellValue = (cell) => {
+                  const clone = cell.cloneNode(true);
+                  clone.querySelectorAll('.table__label').forEach((n) => n.remove());
+                  return (clone.innerText || '').trim();
+                };
+
                 cells.forEach((c, idx) => {
-                  const t = (c.innerText || '').trim();
-                  if (idx === 0) return; // date already grabbed
-                  if (!locationText && /,/.test(t) && !monthRe.test(t) && t.length < 120) {
-                    locationText = t;
+                  const label = (c.querySelector('.table__label')?.innerText || '').trim().toLowerCase();
+                  const value = cleanCellValue(c);
+                  if (!value) return;
+
+                  if (label.startsWith('date')) {
+                    dateText = value;
+                    return;
+                  }
+                  if (label.startsWith('location')) {
+                    locationText = value;
+                    return;
+                  }
+
+                  if (!locationText && idx !== 0 && !c.querySelector('a[href*="/tedx/events/"]')) {
+                    const monthRe = /(January|February|March|April|May|June|July|August|September|October|November|December)/i;
+                    if (!monthRe.test(value) && value.length < 120) {
+                      locationText = value;
+                    }
                   }
                 });
 
