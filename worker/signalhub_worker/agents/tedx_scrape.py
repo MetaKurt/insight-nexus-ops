@@ -97,16 +97,37 @@ def detect_event_type(name: str) -> str:
 def split_city_state(location: str) -> tuple[Optional[str], Optional[str]]:
     """Parse TED location strings.
 
-    TED's table often renders location as multiline text like:
-      'Boca Raton\nFlorida'
-      'Brooklyn\nNew York\nUnited States'
-    but some contexts may flatten that into comma-separated text.
+    TED's table renders location across <br> tags which page.innerText turns
+    into '\\n'-separated strings, but flattening (innerText quirks, no spaces
+    around <br>) sometimes produces glued text like 'JacksonvilleUnited States'
+    or 'Boca RatonFlorida'. This parser handles both.
     """
     if not location:
         return None, None
 
-    normalized = location.replace("\r", "\n")
+    normalized = clean_text(location.replace("\r", "\n")) or ""
+    # First, try clean newline/comma split.
     parts = [p.strip() for p in re.split(r"[\n,]+", normalized) if p.strip()]
+
+    # If we ended up with a single part, try to peel off a trailing country.
+    if len(parts) == 1:
+        single = parts[0]
+        for country in ("United States", "USA", "Canada", "United Kingdom"):
+            if single.lower().endswith(country.lower()) and len(single) > len(country):
+                head = single[: -len(country)].strip(" ,")
+                if head:
+                    parts = [head, country]
+                    break
+        # Try peeling off a trailing US state name glued to the city.
+        if len(parts) == 1:
+            for state_name in US_STATES.keys():
+                if single.lower().endswith(state_name) and len(single) > len(state_name):
+                    head = single[: -len(state_name)].strip(" ,")
+                    # Heuristic: head should look like a city (starts uppercase).
+                    if head and head[0].isupper():
+                        parts = [head, state_name.title()]
+                        break
+
     if not parts:
         return None, None
 
