@@ -60,7 +60,7 @@ def clean_text(s: Optional[str]) -> Optional[str]:
 class ClientEnrichmentAgent(BaseAgent):
     job_type = "client_enrichment"
 
-    AGENT_VERSION = "2026-04-19.v4-log-insert-errors"
+    AGENT_VERSION = "2026-04-19.v5-link-event"
 
     DEFAULT_MAX_FINDINGS = 200
     DEFAULT_MAX_CONTACTS = 1000
@@ -573,11 +573,19 @@ class ClientEnrichmentAgent(BaseAgent):
         # Use first company email if found
         email = company_emails[0] if company_emails else None
 
+        # Organization fallback: if the TED profile didn't list one (most
+        # organizers don't), use the event title itself (e.g. "TEDxBoston")
+        # so the Contacts UI's Organization column isn't empty and the user
+        # can see at a glance which event each contact belongs to.
+        organization = (profile.get("organization") or "").strip()
+        if not organization:
+            organization = (event_title or "").strip() or None
+
         return {
             "finding_id": finding["id"],
             "project_id": project_id,
             "name": organizer["name"][:200],
-            "organization": (profile.get("organization") or "")[:200] or None,
+            "organization": (organization or "")[:200] or None,
             "role_title": combined_role[:200],
             "email": email,
             "website": (profile.get("website") or "")[:500] or None,

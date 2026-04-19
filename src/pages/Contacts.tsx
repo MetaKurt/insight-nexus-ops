@@ -58,6 +58,7 @@ export default function Contacts() {
             <TableHeader>
               <TableRow className="bg-muted/30">
                 <TableHead>Name</TableHead>
+                <TableHead>Event</TableHead>
                 <TableHead>Organization</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Contact</TableHead>
@@ -76,6 +77,20 @@ export default function Contacts() {
                       </span>
                       {c.name}
                     </Link>
+                  </TableCell>
+                  <TableCell className="text-xs">
+                    {c.event ? (
+                      <Link to={`/records/${c.event.id}`} className="block hover:text-primary">
+                        <div className="font-medium text-foreground">{c.event.name}</div>
+                        {(c.event.date || c.event.location) && (
+                          <div className="text-muted-foreground">
+                            {[c.event.date, c.event.location].filter(Boolean).join(" · ")}
+                          </div>
+                        )}
+                      </Link>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   </TableCell>
                   <TableCell>{c.organization}</TableCell>
                   <TableCell className="text-muted-foreground">{c.role}</TableCell>

@@ -102,7 +102,34 @@ type ContactRow = {
   created_at: string;
 };
 
-function rowToContact(r: ContactRow): Contact {
+// Minimal finding shape we need to surface event info on a contact.
+type EventFindingRow = {
+  id: string;
+  title: string | null;
+  data: unknown;
+};
+
+function findingToEvent(f: EventFindingRow | null | undefined): Contact["event"] | undefined {
+  if (!f) return undefined;
+  const d = (f.data ?? {}) as Record<string, unknown>;
+  const date =
+    (typeof d.start_date === "string" && d.start_date) ||
+    (typeof d.event_date === "string" && d.event_date) ||
+    (typeof d.raw_date_text === "string" && d.raw_date_text) ||
+    undefined;
+  const city = typeof d.city === "string" ? d.city : "";
+  const country = typeof d.country === "string" ? d.country : "";
+  const state = typeof d.state === "string" ? d.state : "";
+  const location = [city, state, country].filter(Boolean).join(", ") || undefined;
+  return {
+    id: f.id,
+    name: f.title ?? "(unknown event)",
+    date: date || undefined,
+    location,
+  };
+}
+
+function rowToContact(r: ContactRow, event?: Contact["event"]): Contact {
   const knownOutreach = new Set([
     "not_contacted", "queued", "contacted", "replied", "bounced", "do_not_contact",
   ]);
@@ -132,6 +159,7 @@ function rowToContact(r: ContactRow): Contact {
     outreachStatus,
     notes: r.notes ?? undefined,
     createdAt: r.created_at,
+    event,
   };
 }
 
@@ -174,7 +202,8 @@ export const api = {
     },
   },
   contacts: {
-    // Live Supabase-backed contacts.
+    // Live Supabase-backed contacts. Also fetches related findings so the UI
+    // can show which TEDx event each contact came from.
     list: async (_workspaceId?: string | null): Promise<Contact[]> => {
       const { data, error } = await supabase
         .from("contacts")
@@ -182,7 +211,22 @@ export const api = {
         .order("created_at", { ascending: false })
         .limit(1000);
       if (error) throw error;
-      return (data ?? []).map(rowToContact);
+      const rows = (data ?? []) as ContactRow[];
+
+      const findingIds = Array.from(
+        new Set(rows.map((r) => r.finding_id).filter((x): x is string => !!x)),
+      );
+      const eventMap = new Map<string, Contact["event"]>();
+      if (findingIds.length) {
+        const { data: fdata } = await supabase
+          .from("findings")
+          .select("id, title, data")
+          .in("id", findingIds);
+        for (const f of (fdata ?? []) as EventFindingRow[]) {
+          eventMap.set(f.id, findingToEvent(f));
+        }
+      }
+      return rows.map((r) => rowToContact(r, r.finding_id ? eventMap.get(r.finding_id) : undefined));
     },
     get: async (id: string): Promise<Contact | undefined> => {
       const { data, error } = await supabase
@@ -191,7 +235,17 @@ export const api = {
         .eq("id", id)
         .maybeSingle();
       if (error) throw error;
-      return data ? rowToContact(data) : undefined;
+      if (!data) return undefined;
+      let event: Contact["event"] | undefined;
+      if (data.finding_id) {
+        const { data: f } = await supabase
+          .from("findings")
+          .select("id, title, data")
+          .eq("id", data.finding_id)
+          .maybeSingle();
+        event = findingToEvent(f as EventFindingRow | null);
+      }
+      return rowToContact(data as ContactRow, event);
     },
   },
   runs: {
