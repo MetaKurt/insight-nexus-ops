@@ -20,6 +20,8 @@ import Sources from "./pages/Sources";
 import ReviewQueue from "./pages/ReviewQueue";
 import Errors from "./pages/Errors";
 import SettingsPage from "./pages/Settings";
+import ControlCenter from "./pages/ControlCenter";
+import JobDetail from "./pages/JobDetail";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -45,6 +47,8 @@ const App = () => (
               <Route path="/sources" element={<Sources />} />
               <Route path="/review" element={<ReviewQueue />} />
               <Route path="/errors" element={<Errors />} />
+              <Route path="/control-center" element={<ControlCenter />} />
+              <Route path="/control-center/jobs/:id" element={<JobDetail />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
