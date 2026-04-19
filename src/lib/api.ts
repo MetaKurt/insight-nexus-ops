@@ -33,6 +33,58 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { priorityToInt, rowToJob, rowToLog, rowToWorker } from "./jobsMapping";
 
+// Maps a Supabase `findings` row → the UI `Finding` shape used by Records pages.
+type FindingRow = {
+  id: string;
+  project_id: string | null;
+  title: string | null;
+  summary: string | null;
+  source_url: string | null;
+  source_type: string | null;
+  status: string | null;
+  confidence: number | null;
+  data: unknown;
+  created_at: string;
+  updated_at: string;
+};
+
+function rowToFinding(r: FindingRow): Finding {
+  const data = (r.data ?? {}) as Record<string, unknown>;
+  const extracted: Record<string, string | number | null> = {};
+  for (const [k, v] of Object.entries(data)) {
+    if (v == null) { extracted[k] = null; continue; }
+    if (typeof v === "string" || typeof v === "number") extracted[k] = v;
+    else if (typeof v === "boolean") extracted[k] = v ? "yes" : "no";
+    else extracted[k] = JSON.stringify(v).slice(0, 200);
+  }
+  const knownTypes = new Set(["website", "event_page", "social", "directory", "manual", "csv", "api"]);
+  const rawType = (r.source_type ?? "").toLowerCase();
+  const sourceType = (knownTypes.has(rawType) ? rawType : "api") as Finding["sourceType"];
+  // Confidence in DB is 0–1; UI expects 0–100.
+  const cn = r.confidence == null ? 0 : Number(r.confidence);
+  const conf = Math.round(cn <= 1 ? cn * 100 : cn);
+  const tags: string[] = [];
+  if (typeof data.event_type === "string") tags.push(data.event_type);
+  if (typeof data.state === "string") tags.push(data.state);
+  if (r.source_type) tags.push(r.source_type);
+  return {
+    id: r.id,
+    workspaceId: "",
+    projectId: r.project_id ?? "",
+    title: r.title ?? "(untitled)",
+    summary: r.summary ?? "",
+    sourceUrl: r.source_url ?? "",
+    sourceType,
+    status: ((r.status ?? "new") as Finding["status"]),
+    confidence: conf,
+    tags,
+    extractedFields: extracted,
+    relatedContactIds: [],
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  };
+}
+
 const delay = <T,>(value: T, ms = 250): Promise<T> =>
   new Promise((resolve) => setTimeout(() => resolve(value), ms));
 
