@@ -9,6 +9,7 @@ import {
   Download,
   ShieldCheck,
   Heart,
+  Mail,
 } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
