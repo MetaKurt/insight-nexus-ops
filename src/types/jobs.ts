@@ -9,6 +9,7 @@ export type JobStatus = "queued" | "running" | "succeeded" | "failed" | "cancell
 export type JobPriority = "low" | "normal" | "high" | "urgent";
 
 export type JobType =
+  | "hello"
   | "tedx_scrape"
   | "hotel_lead_research"
   | "nvrland_research"
@@ -21,7 +22,7 @@ export interface JobTypeDefinition {
   id: JobType;
   label: string;
   description: string;
-  category: "research" | "enrichment" | "maintenance" | "export";
+  category: "research" | "enrichment" | "maintenance" | "export" | "diagnostic";
   defaultPriority: JobPriority;
   // Which payload fields this job type accepts in the launch form.
   fields: Array<
