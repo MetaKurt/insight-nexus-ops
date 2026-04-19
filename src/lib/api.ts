@@ -100,6 +100,14 @@ type ContactRow = {
   outreach_status: string | null;
   notes: string | null;
   created_at: string;
+  // Stage 3 — Hunter enrichment columns
+  linkedin_url?: string | null;
+  twitter_url?: string | null;
+  email_verification_status?: string | null;
+  email_score?: number | null;
+  enrichment_sources?: unknown;
+  enriched_at?: string | null;
+  enrichment_provider?: string | null;
 };
 
 // Minimal finding shape we need to surface event info on a contact.
@@ -137,11 +145,26 @@ function rowToContact(r: ContactRow, event?: Contact["event"]): Contact {
   const outreachStatus = (knownOutreach.has(rawOutreach) ? rawOutreach : "not_contacted") as Contact["outreachStatus"];
   const cn = r.confidence == null ? 0 : Number(r.confidence);
   const conf = Math.round(cn <= 1 ? cn * 100 : cn);
+  // Build socials — prefer the new typed columns, fall back to legacy social_url.
   const social: Contact["social"] = {};
-  if (r.social_url) {
+  if (r.linkedin_url) social.linkedin = r.linkedin_url;
+  if (r.twitter_url) social.twitter = r.twitter_url;
+  if (!social.linkedin && !social.twitter && r.social_url) {
     if (/linkedin\.com/i.test(r.social_url)) social.linkedin = r.social_url;
     else if (/twitter\.com|x\.com/i.test(r.social_url)) social.twitter = r.social_url;
     else if (/instagram\.com/i.test(r.social_url)) social.instagram = r.social_url;
+  }
+  // Normalise enrichment_sources from jsonb.
+  let sources: Contact["enrichmentSources"] | undefined;
+  if (Array.isArray(r.enrichment_sources)) {
+    sources = (r.enrichment_sources as Array<Record<string, unknown>>)
+      .map((s) => ({
+        url: typeof s.url === "string" ? s.url : "",
+        extracted_on: typeof s.extracted_on === "string" ? s.extracted_on : undefined,
+        last_seen_on: typeof s.last_seen_on === "string" ? s.last_seen_on : undefined,
+      }))
+      .filter((s) => s.url);
+    if (!sources.length) sources = undefined;
   }
   return {
     id: r.id,
@@ -160,6 +183,11 @@ function rowToContact(r: ContactRow, event?: Contact["event"]): Contact {
     notes: r.notes ?? undefined,
     createdAt: r.created_at,
     event,
+    emailVerification: r.email_verification_status ?? undefined,
+    emailScore: r.email_score ?? undefined,
+    enrichmentSources: sources,
+    enrichedAt: r.enriched_at ?? undefined,
+    enrichmentProvider: r.enrichment_provider ?? undefined,
   };
 }
 
