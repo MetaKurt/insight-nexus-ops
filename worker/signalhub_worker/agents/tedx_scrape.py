@@ -154,7 +154,7 @@ class TedxScrapeAgent(BaseAgent):
     DEFAULT_YEARS = [2026, 2027]
     # Bump this whenever the agent logic changes so logs make it obvious
     # which version is actually executing on the worker machine.
-    AGENT_VERSION = "2026-04-19.table-parser-v3-location-cell"
+    AGENT_VERSION = "2026-04-19.table-parser-v5-real-query-fix"
 
     async def run(self, payload: dict, ctx: AgentContext) -> AgentResult:
         # Print the file path + version FIRST so we can always tell which
@@ -222,130 +222,132 @@ class TedxScrapeAgent(BaseAgent):
                 )
                 page = await context.new_page()
 
-                for page_num in range(1, max_pages + 1):
-                    if len(findings_to_insert) >= limit:
-                        ctx.log("info", f"Hit user-specified limit ({limit}). Stopping.")
-                        break
+                location_query = legacy_state_filter or country
 
-                    url = self._build_url(
-                        country=country,
-                        years=years,
-                        available_only=available_only,
-                        page=page_num,
-                    )
-                    ctx.log("info", f"Scanning page {page_num} → {url}")
-                    try:
-                        await page.goto(url, wait_until="domcontentloaded", timeout=45_000)
-                        # Table is server-rendered; tiny wait covers any late hydration.
-                        await page.wait_for_timeout(500)
-                    except Exception as exc:  # noqa: BLE001
-                        errors += 1
-                        ctx.log("warning", f"Page {page_num} failed to load: {exc}")
-                        continue
-
-                    rows = await self._extract_rows_from_page(page)
-                    pages_scanned += 1
-
-                    if not rows:
-                        ctx.log(
-                            "info",
-                            f"Page {page_num} has no event rows — assuming end of listings.",
-                        )
-                        break
-
-                    page_kept = 0
-                    page_skipped_past = 0
-                    page_skipped_no_space = 0
-                    page_skipped_year = 0
-                    page_skipped_country = 0
-                    page_skipped_dup = 0
-                    page_skipped_keyword = 0
-                    page_skipped_state = 0
-                    page_skipped_no_url = 0
-
-                    for row in rows:
+                for target_year in years:
+                    ctx.log("info", f"Scanning TED listing for year={target_year} location_query={location_query!r}")
+                    for page_num in range(1, max_pages + 1):
                         if len(findings_to_insert) >= limit:
+                            ctx.log("info", f"Hit user-specified limit ({limit}). Stopping.")
                             break
 
-                        listing_url = row.get("url") or ""
-                        if not listing_url:
-                            page_skipped_no_url += 1
-                            continue
-                        if listing_url in seen_urls:
-                            page_skipped_dup += 1
-                            continue
-                        seen_urls.add(listing_url)
-
-                        if row.get("is_past"):
-                            page_skipped_past += 1
-                            continue
-
-                        spaces_available = bool(row.get("spaces_available"))
-                        if available_only and not spaces_available:
-                            page_skipped_no_space += 1
+                        url = self._build_url(
+                            location_query=location_query,
+                            year=target_year,
+                            available_only=available_only,
+                            page=page_num,
+                        )
+                        ctx.log("info", f"Scanning page {page_num} → {url}")
+                        try:
+                            await page.goto(url, wait_until="domcontentloaded", timeout=45_000)
+                            await page.wait_for_timeout(500)
+                        except Exception as exc:  # noqa: BLE001
+                            errors += 1
+                            ctx.log("warning", f"Page {page_num} failed to load: {exc}")
                             continue
 
-                        name = (row.get("name") or "").strip()
-                        location = (row.get("location") or "").strip()
-                        date_text = (row.get("date_text") or "").strip()
+                        rows = await self._extract_rows_from_page(page)
+                        pages_scanned += 1
 
-                        # Country/state — when filtering by US, double-check the
-                        # scraped row really is US (the URL filter does most of
-                        # the work, but defensive check helps).
-                        city, state_raw = split_city_state(location)
-                        if country and country.lower() in {"united states", "usa", "us"}:
-                            if state_raw and not is_us_state(state_raw):
-                                page_skipped_country += 1
+                        if not rows:
+                            ctx.log(
+                                "info",
+                                f"Page {page_num} has no event rows — assuming end of listings for {target_year}.",
+                            )
+                            break
+
+                        page_kept = 0
+                        page_skipped_past = 0
+                        page_skipped_no_space = 0
+                        page_skipped_year = 0
+                        page_skipped_country = 0
+                        page_skipped_dup = 0
+                        page_skipped_keyword = 0
+                        page_skipped_state = 0
+                        page_skipped_no_url = 0
+
+                        for row in rows:
+                            if len(findings_to_insert) >= limit:
+                                break
+
+                            listing_url = row.get("url") or ""
+                            if not listing_url:
+                                page_skipped_no_url += 1
                                 continue
-                        state = normalize_state(state_raw) if is_us_state(state_raw) else state_raw
+                            if listing_url in seen_urls:
+                                page_skipped_dup += 1
+                                continue
+                            seen_urls.add(listing_url)
 
-                        # Year filter — confirm against scraped date_text.
-                        year = extract_year(date_text, name)
-                        if years and year and year not in years:
-                            page_skipped_year += 1
-                            continue
-
-                        if not keyword_match(name, keywords):
-                            page_skipped_keyword += 1
-                            continue
-
-                        if legacy_state_filter:
-                            t = legacy_state_filter.lower()
-                            if t not in (state or "").lower() and t not in (city or "").lower():
-                                page_skipped_state += 1
+                            if row.get("is_past"):
+                                page_skipped_past += 1
                                 continue
 
-                        event_type = detect_event_type(name)
-                        start_date, end_date = self._parse_dates(date_text, year or (years[0] if years else 0))
+                            spaces_available = bool(row.get("spaces_available"))
+                            if available_only and not spaces_available:
+                                page_skipped_no_space += 1
+                                continue
 
-                        record = {
-                            "event_name": name,
-                            "event_type": event_type,
-                            "start_date": start_date,
-                            "end_date": end_date,
-                            "city": city,
-                            "state": state,
-                            "country": country,
-                            "spaces_available": spaces_available,
-                            "webcast": bool(row.get("webcast")),
-                            "ted_url": listing_url,
-                            "raw_date_text": date_text,
-                            "raw_location": location,
-                        }
-                        findings_to_insert.append(self._to_finding_row(record, payload))
-                        page_kept += 1
+                            name = (row.get("name") or "").strip()
+                            location = (row.get("location") or "").strip()
+                            date_text = (row.get("date_text") or "").strip()
 
-                    ctx.log(
-                        "info",
-                        f"Page {page_num}: {len(rows)} rows | kept {page_kept} | "
-                        f"skipped past={page_skipped_past} no_space={page_skipped_no_space} "
-                        f"year={page_skipped_year} country={page_skipped_country} "
-                        f"dup={page_skipped_dup} keyword={page_skipped_keyword} "
-                        f"state={page_skipped_state} no_url={page_skipped_no_url} "
-                        f"(running total {len(findings_to_insert)})",
-                    )
+                            city, state_raw = split_city_state(location)
+                            if country and country.lower() in {"united states", "usa", "us"}:
+                                if state_raw and not is_us_state(state_raw):
+                                    page_skipped_country += 1
+                                    continue
+                            state = normalize_state(state_raw) if is_us_state(state_raw) else state_raw
 
-                    await page.wait_for_timeout(300)
+                            year = extract_year(date_text, name)
+                            if years and year and year not in years:
+                                page_skipped_year += 1
+                                continue
+
+                            if not keyword_match(name, keywords):
+                                page_skipped_keyword += 1
+                                continue
+
+                            if legacy_state_filter and not location_query:
+                                t = legacy_state_filter.lower()
+                                if t not in (state or "").lower() and t not in (city or "").lower():
+                                    page_skipped_state += 1
+                                    continue
+
+                            event_type = detect_event_type(name)
+                            start_date, end_date = self._parse_dates(date_text, year or target_year)
+
+                            record = {
+                                "event_name": name,
+                                "event_type": event_type,
+                                "start_date": start_date,
+                                "end_date": end_date,
+                                "city": city,
+                                "state": state,
+                                "country": country,
+                                "spaces_available": spaces_available,
+                                "webcast": bool(row.get("webcast")),
+                                "ted_url": listing_url,
+                                "raw_date_text": date_text,
+                                "raw_location": location,
+                            }
+                            findings_to_insert.append(self._to_finding_row(record, payload))
+                            page_kept += 1
+
+                        ctx.log(
+                            "info",
+                            f"Page {page_num}: {len(rows)} rows | kept {page_kept} | "
+                            f"skipped past={page_skipped_past} no_space={page_skipped_no_space} "
+                            f"year={page_skipped_year} country={page_skipped_country} "
+                            f"dup={page_skipped_dup} keyword={page_skipped_keyword} "
+                            f"state={page_skipped_state} no_url={page_skipped_no_url} "
+                            f"(running total {len(findings_to_insert)})",
+                        )
+
+                        await page.wait_for_timeout(300)
+
+                    if len(findings_to_insert) >= limit:
+                        break
 
                 await context.close()
             finally:
@@ -389,23 +391,24 @@ class TedxScrapeAgent(BaseAgent):
     def _build_url(
         self,
         *,
-        country: Optional[str],
-        years: List[int],
+        location_query: Optional[str],
+        year: int,
         available_only: bool,
         page: int,
     ) -> str:
-        """Construct the listing URL with all filters baked into query params.
+        """Construct the listing URL using TED's real server-side filters.
 
-        TED uses repeated `year[]=` for multi-select years, which urlencode
-        handles correctly when we pass tuples with the bracketed key.
+        TED's filter form uses:
+        - autocomplete_filter=<location, name, or type>
+        - year=<single year>
+        - available=on
         """
         params: list[tuple[str, str]] = []
         if available_only:
             params.append(("available", "on"))
-        if country:
-            params.append(("country", country))
-        for y in years:
-            params.append(("year[]", str(y)))
+        if location_query:
+            params.append(("autocomplete_filter", location_query))
+        params.append(("year", str(year)))
         params.append(("sort", "newest"))
         params.append(("page", str(page)))
         return f"{self.BASE_URL}?{urlencode(params)}"
