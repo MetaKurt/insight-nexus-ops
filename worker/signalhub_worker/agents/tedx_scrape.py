@@ -154,7 +154,7 @@ class TedxScrapeAgent(BaseAgent):
     DEFAULT_YEARS = [2026, 2027]
     # Bump this whenever the agent logic changes so logs make it obvious
     # which version is actually executing on the worker machine.
-    AGENT_VERSION = "2026-04-19.table-parser-v3-location-cell"
+    AGENT_VERSION = "2026-04-19.table-parser-v4-real-query"
 
     async def run(self, payload: dict, ctx: AgentContext) -> AgentResult:
         # Print the file path + version FIRST so we can always tell which
@@ -222,36 +222,39 @@ class TedxScrapeAgent(BaseAgent):
                 )
                 page = await context.new_page()
 
-                for page_num in range(1, max_pages + 1):
-                    if len(findings_to_insert) >= limit:
-                        ctx.log("info", f"Hit user-specified limit ({limit}). Stopping.")
-                        break
+                location_query = legacy_state_filter or country
 
-                    url = self._build_url(
-                        country=country,
-                        years=years,
-                        available_only=available_only,
-                        page=page_num,
-                    )
-                    ctx.log("info", f"Scanning page {page_num} → {url}")
-                    try:
-                        await page.goto(url, wait_until="domcontentloaded", timeout=45_000)
-                        # Table is server-rendered; tiny wait covers any late hydration.
-                        await page.wait_for_timeout(500)
-                    except Exception as exc:  # noqa: BLE001
-                        errors += 1
-                        ctx.log("warning", f"Page {page_num} failed to load: {exc}")
-                        continue
+                for target_year in years:
+                    ctx.log("info", f"Scanning TED listing for year={target_year} location_query={location_query!r}")
+                    for page_num in range(1, max_pages + 1):
+                        if len(findings_to_insert) >= limit:
+                            ctx.log("info", f"Hit user-specified limit ({limit}). Stopping.")
+                            break
 
-                    rows = await self._extract_rows_from_page(page)
-                    pages_scanned += 1
-
-                    if not rows:
-                        ctx.log(
-                            "info",
-                            f"Page {page_num} has no event rows — assuming end of listings.",
+                        url = self._build_url(
+                            location_query=location_query,
+                            year=target_year,
+                            available_only=available_only,
+                            page=page_num,
                         )
-                        break
+                        ctx.log("info", f"Scanning page {page_num} → {url}")
+                        try:
+                            await page.goto(url, wait_until="domcontentloaded", timeout=45_000)
+                            await page.wait_for_timeout(500)
+                        except Exception as exc:  # noqa: BLE001
+                            errors += 1
+                            ctx.log("warning", f"Page {page_num} failed to load: {exc}")
+                            continue
+
+                        rows = await self._extract_rows_from_page(page)
+                        pages_scanned += 1
+
+                        if not rows:
+                            ctx.log(
+                                "info",
+                                f"Page {page_num} has no event rows — assuming end of listings for {target_year}.",
+                            )
+                            break
 
                     page_kept = 0
                     page_skipped_past = 0
@@ -309,7 +312,12 @@ class TedxScrapeAgent(BaseAgent):
                             page_skipped_keyword += 1
                             continue
 
-                        if legacy_state_filter:
+                        # If we already pushed a location/state filter into TED's
+                        # own autocomplete_filter query param, trust TED's matching.
+                        # Their results often omit the state name in the table
+                        # (e.g. "Jacksonville\nUnited States"), so a second local
+                        # state-string check would incorrectly drop valid rows.
+                        if legacy_state_filter and not location_query:
                             t = legacy_state_filter.lower()
                             if t not in (state or "").lower() and t not in (city or "").lower():
                                 page_skipped_state += 1
