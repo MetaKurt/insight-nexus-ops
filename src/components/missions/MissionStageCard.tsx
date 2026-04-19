@@ -5,13 +5,18 @@
 //   - everything else                → just status
 
 import { Link } from "react-router-dom";
-import { ArrowRight, CheckCircle2, ExternalLink, PlayCircle } from "lucide-react";
+import { AlertTriangle, ArrowRight, CheckCircle2, ExternalLink, PlayCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/StatusBadge";
 import type { MissionStage } from "@/types/missions";
 import { jobTypeCatalog } from "@/mocks/jobs";
+
+// Worker agents currently registered in worker/signalhub_worker/registry.py.
+// Keep in sync. If a stage's job_type isn't here, queueing produces a job
+// no worker can claim — show a warning before the user clicks Approve.
+const REGISTERED_AGENTS = new Set<string>(["hello", "tedx_scrape"]);
 
 interface Props {
   stage: MissionStage;
@@ -66,6 +71,16 @@ export function MissionStageCard({
         <pre className="overflow-x-auto rounded bg-muted/40 p-2 text-[11px] font-mono text-muted-foreground">
           {JSON.stringify(stage.payload, null, 2)}
         </pre>
+      )}
+
+      {!REGISTERED_AGENTS.has(stage.job_type) && stage.status !== "done" && stage.status !== "skipped" && (
+        <div className="flex items-start gap-2 rounded border border-warning/40 bg-warning/10 p-2 text-xs">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
+          <div className="text-foreground">
+            No worker agent registered for <code className="font-mono">{stage.job_type}</code>.
+            Queueing or approving this stage will create a job that no worker can run yet.
+          </div>
+        </div>
       )}
 
       <div className="flex flex-wrap items-center gap-2">

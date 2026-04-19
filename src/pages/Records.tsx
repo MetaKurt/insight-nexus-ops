@@ -19,7 +19,7 @@ import { api } from "@/lib/api";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 const statuses = ["all", "new", "in_review", "approved", "rejected", "flagged", "duplicate", "complete"];
-const sourceTypes = ["all", "website", "event_page", "social", "directory", "manual", "csv", "api"];
+const sourceTypes = ["all", "tedx_events", "website", "event_page", "social", "directory", "manual", "csv", "api"];
 
 export default function Records() {
   const { workspaceId } = useWorkspace();

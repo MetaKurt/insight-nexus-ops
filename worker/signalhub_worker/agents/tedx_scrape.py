@@ -74,6 +74,20 @@ US_STATE_CODES = set(US_STATES.values())
 EVENT_TYPE_PATTERN = re.compile(r"^(TEDx[A-Za-z]*)", re.IGNORECASE)
 YEAR_PATTERN = re.compile(r"\b(20\d{2})\b")
 
+# Invisible characters TED inserts into event names for line-breaking.
+# Soft hyphen (U+00AD), zero-width space (U+200B), zero-width non-joiner (U+200C),
+# zero-width joiner (U+200D), word joiner (U+2060), BOM (U+FEFF).
+_INVISIBLE_CHARS_RE = re.compile(r"[\u00AD\u200B\u200C\u200D\u2060\uFEFF]")
+
+
+def clean_text(s: Optional[str]) -> Optional[str]:
+    """Strip invisible/zero-width chars and collapse whitespace."""
+    if s is None:
+        return None
+    s = _INVISIBLE_CHARS_RE.sub("", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s or None
+
 
 def detect_event_type(name: str) -> str:
     m = EVENT_TYPE_PATTERN.search(name or "")
@@ -83,16 +97,37 @@ def detect_event_type(name: str) -> str:
 def split_city_state(location: str) -> tuple[Optional[str], Optional[str]]:
     """Parse TED location strings.
 
-    TED's table often renders location as multiline text like:
-      'Boca Raton\nFlorida'
-      'Brooklyn\nNew York\nUnited States'
-    but some contexts may flatten that into comma-separated text.
+    TED's table renders location across <br> tags which page.innerText turns
+    into '\\n'-separated strings, but flattening (innerText quirks, no spaces
+    around <br>) sometimes produces glued text like 'JacksonvilleUnited States'
+    or 'Boca RatonFlorida'. This parser handles both.
     """
     if not location:
         return None, None
 
-    normalized = location.replace("\r", "\n")
+    normalized = clean_text(location.replace("\r", "\n")) or ""
+    # First, try clean newline/comma split.
     parts = [p.strip() for p in re.split(r"[\n,]+", normalized) if p.strip()]
+
+    # If we ended up with a single part, try to peel off a trailing country.
+    if len(parts) == 1:
+        single = parts[0]
+        for country in ("United States", "USA", "Canada", "United Kingdom"):
+            if single.lower().endswith(country.lower()) and len(single) > len(country):
+                head = single[: -len(country)].strip(" ,")
+                if head:
+                    parts = [head, country]
+                    break
+        # Try peeling off a trailing US state name glued to the city.
+        if len(parts) == 1:
+            for state_name in US_STATES.keys():
+                if single.lower().endswith(state_name) and len(single) > len(state_name):
+                    head = single[: -len(state_name)].strip(" ,")
+                    # Heuristic: head should look like a city (starts uppercase).
+                    if head and head[0].isupper():
+                        parts = [head, state_name.title()]
+                        break
+
     if not parts:
         return None, None
 
@@ -154,7 +189,7 @@ class TedxScrapeAgent(BaseAgent):
     DEFAULT_YEARS = [2026, 2027]
     # Bump this whenever the agent logic changes so logs make it obvious
     # which version is actually executing on the worker machine.
-    AGENT_VERSION = "2026-04-19.table-parser-v5-real-query-fix"
+    AGENT_VERSION = "2026-04-19.v6-clean-strings"
 
     async def run(self, payload: dict, ctx: AgentContext) -> AgentResult:
         # Print the file path + version FIRST so we can always tell which
@@ -288,9 +323,9 @@ class TedxScrapeAgent(BaseAgent):
                                 page_skipped_no_space += 1
                                 continue
 
-                            name = (row.get("name") or "").strip()
-                            location = (row.get("location") or "").strip()
-                            date_text = (row.get("date_text") or "").strip()
+                            name = clean_text(row.get("name")) or ""
+                            location = clean_text(row.get("location")) or ""
+                            date_text = clean_text(row.get("date_text")) or ""
 
                             city, state_raw = split_city_state(location)
                             if country and country.lower() in {"united states", "usa", "us"}:

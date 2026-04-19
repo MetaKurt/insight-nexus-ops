@@ -44,7 +44,8 @@ export type SourceType =
   | "directory"
   | "manual"
   | "csv"
-  | "api";
+  | "api"
+  | "tedx_events";
 
 export interface Finding {
   id: ID;
