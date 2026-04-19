@@ -51,10 +51,25 @@ export const api = {
       delay(mockProjects.find((p) => p.id === id)),
   },
   findings: {
-    list: (workspaceId?: string | null): Promise<Finding[]> =>
-      delay(filterByWorkspace(mockFindings, workspaceId)),
-    get: (id: string): Promise<Finding | undefined> =>
-      delay(mockFindings.find((f) => f.id === id)),
+    // Live Supabase-backed findings. Maps DB row → UI Finding shape.
+    list: async (_workspaceId?: string | null): Promise<Finding[]> => {
+      const { data, error } = await supabase
+        .from("findings")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(1000);
+      if (error) throw error;
+      return (data ?? []).map(rowToFinding);
+    },
+    get: async (id: string): Promise<Finding | undefined> => {
+      const { data, error } = await supabase
+        .from("findings")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+      if (error) throw error;
+      return data ? rowToFinding(data) : undefined;
+    },
   },
   contacts: {
     list: (workspaceId?: string | null): Promise<Contact[]> =>
