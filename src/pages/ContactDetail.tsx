@@ -1,6 +1,6 @@
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Mail, Phone, Globe, Linkedin, Users, Calendar } from "lucide-react";
+import { ArrowLeft, Mail, Phone, Globe, Linkedin, Twitter, Users, Calendar, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/PageHeader";
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
+import { VerifyEmailButton } from "@/components/contacts/VerifyEmailButton";
 
 export default function ContactDetail() {
   const { id = "" } = useParams();
@@ -51,10 +52,22 @@ export default function ContactDetail() {
         <Card className="bg-surface-elevated border-border/60 lg:col-span-2">
           <CardHeader><CardTitle className="text-base">Contact details</CardTitle></CardHeader>
           <CardContent className="space-y-3 text-sm">
-            {c.email && <div className="flex items-center gap-2"><Mail className="h-4 w-4 text-muted-foreground" /> {c.email}</div>}
+            {c.email && (
+              <div className="flex items-center gap-2">
+                <Mail className="h-4 w-4 text-muted-foreground" />
+                <span>{c.email}</span>
+                <VerifyEmailButton
+                  contactId={c.id}
+                  email={c.email}
+                  status={c.emailVerification}
+                  score={c.emailScore}
+                />
+              </div>
+            )}
             {c.phone && <div className="flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground" /> {c.phone}</div>}
             {c.website && <a className="flex items-center gap-2 text-primary hover:underline" href={c.website} target="_blank" rel="noreferrer"><Globe className="h-4 w-4" /> {c.website}</a>}
             {c.social?.linkedin && <a className="flex items-center gap-2 text-primary hover:underline" href={c.social.linkedin} target="_blank" rel="noreferrer"><Linkedin className="h-4 w-4" /> LinkedIn</a>}
+            {c.social?.twitter && <a className="flex items-center gap-2 text-primary hover:underline" href={c.social.twitter} target="_blank" rel="noreferrer"><Twitter className="h-4 w-4" /> Twitter</a>}
             {c.notes && <p className="rounded-md bg-muted/40 p-3 text-muted-foreground">{c.notes}</p>}
           </CardContent>
         </Card>
@@ -80,6 +93,62 @@ export default function ContactDetail() {
             {c.projectId && <div><p className="text-xs uppercase text-muted-foreground">Project</p><Link to={`/projects/${c.projectId}`} className="text-primary hover:underline">View project</Link></div>}
           </CardContent>
         </Card>
+
+        {(c.enrichedAt || c.emailVerification || c.enrichmentSources?.length) && (
+          <Card className="bg-surface-elevated border-border/60 lg:col-span-3">
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                Enrichment
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <div className="grid gap-4 sm:grid-cols-3">
+                {c.emailVerification && (
+                  <div>
+                    <p className="text-xs uppercase text-muted-foreground">Email verification</p>
+                    <p className="capitalize">
+                      {c.emailVerification}
+                      {c.emailScore != null && <span className="text-muted-foreground"> · score {c.emailScore}</span>}
+                    </p>
+                  </div>
+                )}
+                {c.enrichmentProvider && (
+                  <div>
+                    <p className="text-xs uppercase text-muted-foreground">Provider</p>
+                    <p className="capitalize">{c.enrichmentProvider}</p>
+                  </div>
+                )}
+                {c.enrichedAt && (
+                  <div>
+                    <p className="text-xs uppercase text-muted-foreground">Enriched</p>
+                    <p>{new Date(c.enrichedAt).toLocaleString()}</p>
+                  </div>
+                )}
+              </div>
+
+              {c.enrichmentSources && c.enrichmentSources.length > 0 && (
+                <div>
+                  <p className="text-xs uppercase text-muted-foreground mb-1">Sources where Hunter saw this email</p>
+                  <ul className="space-y-1">
+                    {c.enrichmentSources.map((s, i) => (
+                      <li key={i} className="text-xs">
+                        <a href={s.url} target="_blank" rel="noreferrer" className="text-primary hover:underline break-all">
+                          {s.url}
+                        </a>
+                        {(s.extracted_on || s.last_seen_on) && (
+                          <span className="text-muted-foreground">
+                            {" "}— last seen {s.last_seen_on ?? s.extracted_on}
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

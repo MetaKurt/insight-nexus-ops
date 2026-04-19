@@ -19,8 +19,14 @@ export type Database = {
           confidence: number | null
           created_at: string
           email: string | null
+          email_score: number | null
+          email_verification_status: string | null
+          enriched_at: string | null
+          enrichment_provider: string | null
+          enrichment_sources: Json | null
           finding_id: string | null
           id: string
+          linkedin_url: string | null
           name: string | null
           notes: string | null
           organization: string | null
@@ -30,6 +36,7 @@ export type Database = {
           role_title: string | null
           social_url: string | null
           source: string | null
+          twitter_url: string | null
           updated_at: string
           website: string | null
         }
@@ -37,8 +44,14 @@ export type Database = {
           confidence?: number | null
           created_at?: string
           email?: string | null
+          email_score?: number | null
+          email_verification_status?: string | null
+          enriched_at?: string | null
+          enrichment_provider?: string | null
+          enrichment_sources?: Json | null
           finding_id?: string | null
           id?: string
+          linkedin_url?: string | null
           name?: string | null
           notes?: string | null
           organization?: string | null
@@ -48,6 +61,7 @@ export type Database = {
           role_title?: string | null
           social_url?: string | null
           source?: string | null
+          twitter_url?: string | null
           updated_at?: string
           website?: string | null
         }
@@ -55,8 +69,14 @@ export type Database = {
           confidence?: number | null
           created_at?: string
           email?: string | null
+          email_score?: number | null
+          email_verification_status?: string | null
+          enriched_at?: string | null
+          enrichment_provider?: string | null
+          enrichment_sources?: Json | null
           finding_id?: string | null
           id?: string
+          linkedin_url?: string | null
           name?: string | null
           notes?: string | null
           organization?: string | null
@@ -66,6 +86,7 @@ export type Database = {
           role_title?: string | null
           social_url?: string | null
           source?: string | null
+          twitter_url?: string | null
           updated_at?: string
           website?: string | null
         }

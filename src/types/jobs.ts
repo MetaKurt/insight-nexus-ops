@@ -14,6 +14,7 @@ export type JobType =
   | "hotel_lead_research"
   | "nvrland_research"
   | "client_enrichment"
+  | "email_lookup"
   | "retry_failed_records"
   | "refresh_source_scan"
   | "export_data";

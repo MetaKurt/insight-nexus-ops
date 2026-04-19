@@ -45,6 +45,14 @@ export const jobTypeCatalog: JobTypeDefinition[] = [
     fields: ["projectId", "limit", "notes"],
   },
   {
+    id: "email_lookup",
+    label: "Find Emails (Hunter.io)",
+    description: "For contacts missing an email, query Hunter.io's Email Finder. Captures email, LinkedIn, Twitter, verification status, and source URLs. Skips contacts enriched in the last 90 days unless force_reenrich is set.",
+    category: "enrichment",
+    defaultPriority: "normal",
+    fields: ["projectId", "notes"],
+  },
+  {
     id: "retry_failed_records",
     label: "Retry Failed Records",
     description: "Re-queue records that previously failed extraction or enrichment.",
