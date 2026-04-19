@@ -11,6 +11,7 @@ import type {
   SystemError,
   Workspace,
 } from "@/types";
+import type { Job, JobLog, JobPayload, JobPriority, JobType, Worker } from "@/types/jobs";
 import {
   contacts as mockContacts,
   errors as mockErrors,
@@ -21,6 +22,7 @@ import {
   sources as mockSources,
   workspaces as mockWorkspaces,
 } from "@/mocks/data";
+import { jobLogs as mockJobLogs, jobs as mockJobs, workers as mockWorkers } from "@/mocks/jobs";
 
 const delay = <T,>(value: T, ms = 250): Promise<T> =>
   new Promise((resolve) => setTimeout(() => resolve(value), ms));
