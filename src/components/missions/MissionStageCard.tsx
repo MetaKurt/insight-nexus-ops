@@ -16,7 +16,7 @@ import { jobTypeCatalog } from "@/mocks/jobs";
 // Worker agents currently registered in worker/signalhub_worker/registry.py.
 // Keep in sync. If a stage's job_type isn't here, queueing produces a job
 // no worker can claim — show a warning before the user clicks Approve.
-const REGISTERED_AGENTS = new Set<string>(["hello", "tedx_scrape"]);
+const REGISTERED_AGENTS = new Set<string>(["hello", "tedx_scrape", "client_enrichment"]);
 
 interface Props {
   stage: MissionStage;
