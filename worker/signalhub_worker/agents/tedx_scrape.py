@@ -253,13 +253,21 @@ class TedxScrapeAgent(BaseAgent):
                     page_skipped_no_space = 0
                     page_skipped_year = 0
                     page_skipped_country = 0
+                    page_skipped_dup = 0
+                    page_skipped_keyword = 0
+                    page_skipped_state = 0
+                    page_skipped_no_url = 0
 
                     for row in rows:
                         if len(findings_to_insert) >= limit:
                             break
 
                         listing_url = row.get("url") or ""
-                        if not listing_url or listing_url in seen_urls:
+                        if not listing_url:
+                            page_skipped_no_url += 1
+                            continue
+                        if listing_url in seen_urls:
+                            page_skipped_dup += 1
                             continue
                         seen_urls.add(listing_url)
 
@@ -293,11 +301,13 @@ class TedxScrapeAgent(BaseAgent):
                             continue
 
                         if not keyword_match(name, keywords):
+                            page_skipped_keyword += 1
                             continue
 
                         if legacy_state_filter:
                             t = legacy_state_filter.lower()
                             if t not in (state or "").lower() and t not in (city or "").lower():
+                                page_skipped_state += 1
                                 continue
 
                         event_type = detect_event_type(name)
@@ -325,6 +335,8 @@ class TedxScrapeAgent(BaseAgent):
                         f"Page {page_num}: {len(rows)} rows | kept {page_kept} | "
                         f"skipped past={page_skipped_past} no_space={page_skipped_no_space} "
                         f"year={page_skipped_year} country={page_skipped_country} "
+                        f"dup={page_skipped_dup} keyword={page_skipped_keyword} "
+                        f"state={page_skipped_state} no_url={page_skipped_no_url} "
                         f"(running total {len(findings_to_insert)})",
                     )
 
