@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { Plus, Target } from "lucide-react";
+import { Plus, Sparkles, Target } from "lucide-react";
 
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -48,9 +48,16 @@ export default function Missions() {
         title="Missions"
         description="Multi-stage research pipelines. Each mission chains jobs together with optional human-review gates between stages."
         actions={
-          <Button onClick={() => setOpen(true)}>
-            <Plus className="mr-1.5 h-4 w-4" /> New mission
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button asChild>
+              <Link to="/missions/new">
+                <Sparkles className="mr-1.5 h-4 w-4" /> Build with AI
+              </Link>
+            </Button>
+            <Button variant="outline" onClick={() => setOpen(true)}>
+              <Plus className="mr-1.5 h-4 w-4" /> Manual
+            </Button>
+          </div>
         }
       />
 
