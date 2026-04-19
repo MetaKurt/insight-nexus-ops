@@ -147,8 +147,19 @@ class TedxScrapeAgent(BaseAgent):
     DEFAULT_MAX_PAGES = 25
     DEFAULT_COUNTRY = "United States"
     DEFAULT_YEARS = [2026, 2027]
+    # Bump this whenever the agent logic changes so logs make it obvious
+    # which version is actually executing on the worker machine.
+    AGENT_VERSION = "2026-04-19.table-parser-v1"
 
     async def run(self, payload: dict, ctx: AgentContext) -> AgentResult:
+        # Print the file path + version FIRST so we can always tell which
+        # copy of the code is running (helps catch stale deploys).
+        import os as _os
+        ctx.log(
+            "info",
+            f"tedx_scrape agent v={self.AGENT_VERSION} "
+            f"file={_os.path.abspath(__file__)}",
+        )
         # Local imports so the rest of the worker boots even if Playwright
         # isn't installed (e.g. during initial setup / CI).
         try:
