@@ -90,6 +90,13 @@ export interface Contact {
   outreachStatus: OutreachStatus;
   notes?: string;
   createdAt: string;
+  // Source event the contact was scraped from (e.g. the TEDx event finding).
+  event?: {
+    id: ID;
+    name: string;
+    date?: string;
+    location?: string;
+  };
 }
 
 export type RunStatus = "queued" | "running" | "success" | "partial" | "failed" | "cancelled";
