@@ -184,7 +184,8 @@ export default function MissionDetail() {
               canQueue={canQueueStage(stage.id)}
               onQueue={() => queueStage.mutate(stage.id)}
               onApprove={() => approveStage.mutate(stage.id)}
-              busy={queueStage.isPending || approveStage.isPending}
+              onRerun={() => rerunStage.mutate(stage.id)}
+              busy={queueStage.isPending || approveStage.isPending || rerunStage.isPending}
             />
           ))
         )}
