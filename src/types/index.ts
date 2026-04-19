@@ -74,6 +74,14 @@ export type OutreachStatus =
   | "bounced"
   | "do_not_contact";
 
+export type EmailVerification = "deliverable" | "risky" | "undeliverable" | "unknown" | string;
+
+export interface EnrichmentSource {
+  url: string;
+  extracted_on?: string;
+  last_seen_on?: string;
+}
+
 export interface Contact {
   id: ID;
   workspaceId: ID;
@@ -97,6 +105,12 @@ export interface Contact {
     date?: string;
     location?: string;
   };
+  // Stage 3 — Hunter.io enrichment fields
+  emailVerification?: EmailVerification;
+  emailScore?: number;
+  enrichmentSources?: EnrichmentSource[];
+  enrichedAt?: string;
+  enrichmentProvider?: string;
 }
 
 export type RunStatus = "queued" | "running" | "success" | "partial" | "failed" | "cancelled";
