@@ -60,7 +60,7 @@ def clean_text(s: Optional[str]) -> Optional[str]:
 class ClientEnrichmentAgent(BaseAgent):
     job_type = "client_enrichment"
 
-AGENT_VERSION = "2026-04-19.v4-log-insert-errors"
+    AGENT_VERSION = "2026-04-19.v4-log-insert-errors"
 
     DEFAULT_MAX_FINDINGS = 200
     DEFAULT_MAX_CONTACTS = 1000
