@@ -202,10 +202,10 @@ export function JobLaunchDialog({ open, onOpenChange, defaultJobType }: JobLaunc
 
           {showField("projectId") && (
             <div className="space-y-1.5">
-              <Label>Project</Label>
+              <Label>Project {jobType === "email_lookup" && <span className="text-muted-foreground font-normal">(optional — leave blank to enrich all contacts)</span>}</Label>
               <Select value={projectId ?? ""} onValueChange={(v) => setProjectId(v || undefined)}>
                 <SelectTrigger>
-                  <SelectValue placeholder={workspaceId === "all" ? "Select project (sets workspace)" : "Select project (optional)"} />
+                  <SelectValue placeholder={jobType === "email_lookup" ? "All contacts (no project filter)" : workspaceId === "all" ? "Select project (sets workspace)" : "Select project (optional)"} />
                 </SelectTrigger>
                 <SelectContent>
                   {scopedProjects.map((p) => (
