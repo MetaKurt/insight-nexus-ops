@@ -1,53 +1,96 @@
 
-# SignalHub — Build Plan
 
-A modular internal ops dashboard for research, scraping, lead enrichment, and review workflows. Built frontend-first with mock data, structured to drop into an existing Supabase backend later.
+# Project Architecture: Multi-Stage Research Pipelines
 
-## Design system
-- **Theme**: dark neutral (near-black surfaces) with emerald as the primary accent; subtle slate borders, soft elevation, generous spacing.
-- **Type**: clean sans (Inter), tabular numerals for tables.
-- **Tokens** in `index.css` + `tailwind.config.ts`: semantic colors (background, surface, surface-elevated, border, muted, primary=emerald, success, warning, danger, info), status badge colors, tag chip colors, radii, shadows.
-- **Reusables**: `DataTable` (sortable/filterable/bulk-select), `FilterBar`, `StatusBadge`, `TagChip`, `ConfidenceMeter`, `StatCard`, `EmptyState`, `PageHeader`, `SectionCard`, `DetailField`, `Timeline`, `LogViewer`, `KeyValueGrid`.
+You're asking exactly the right question, and the answer shapes the whole product. Let me lay out my thinking, then propose a concrete architecture.
 
-## App shell
-- Collapsible sidebar (icon-mini mode) + top header.
-- **Header**: workspace/project switcher (scopes the entire app via context), global search (⌘K command palette), notifications bell, user menu.
-- **Sidebar nav**: Dashboard, Projects, Records, Contacts, Runs, Sources, Review Queue, Errors, Settings.
-- Workspace scope persisted in `localStorage`; "All workspaces" option available.
+## The core insight
 
-## Pages
+What you described — "find TEDx events → for each event, find organizers → for each organizer, find their email/LinkedIn" — is a **Directed Acyclic Graph (DAG) of jobs**, not a single job. Each stage:
+- Has a different agent type
+- Produces records that become inputs for the next stage
+- Should be inspectable and approvable between stages
+- May need different tools (browser scrape vs. LinkedIn API vs. email enrichment vs. LLM extraction)
 
-**1. Dashboard** — KPI cards (total records, active projects, contacts found, jobs today, error rate), area chart of records over time, recent runs list, recent contacts, vertical breakdown cards (Hotels, TEDx, NVRLand, Clients, General Research), failed-jobs strip.
+Trying to cram this into one mega-prompt is brittle. Doing it as fully separate manual jobs is tedious. The right answer is in the middle.
 
-**2. Projects** — Grid of project cards (name, status, tags, owner, counts of records/contacts, last activity) + list toggle. "New Project" dialog. Project detail page with overview, linked records, linked contacts, runs, notes tabs.
+## Recommended architecture: "Missions" with stages
 
-**3. Records** — Powerful table: search, multi-filter (project, status, source type, tag, confidence range, date), sort, bulk actions (tag, change status, export, mark complete). Dedicated record detail page with summary, source URL, extracted fields, structured findings, confidence, related contacts, notes, activity timeline, action bar (Review, Tag, Assign, Mark Complete, Export).
+```text
+Mission: "TEDx US 2026/2027 Outreach"
+│
+├─ Stage 1: Discover events       (agent: tedx_scrape)
+│     output → findings table (200 events)
+│     [HUMAN REVIEW GATE — approve/reject]
+│
+├─ Stage 2: Enrich organizers     (agent: organizer_lookup)
+│     input  ← approved findings from Stage 1
+│     output → contacts table (200 organizers)
+│     [HUMAN REVIEW GATE]
+│
+├─ Stage 3: Find emails/LinkedIn  (agent: contact_enrich)
+│     input  ← approved contacts from Stage 2
+│     output → enriched contacts
+│
+└─ Stage 4: (optional) Draft outreach  (agent: llm_draft)
+```
 
-**4. Contacts** — CRM-style table (name, org, role, email, phone, source, confidence, outreach status). Detail page with contact info, social links, related project/records, outreach timeline, notes.
+Each stage is a separate `job` row. A `mission` row ties them together. The dependency engine auto-queues stage N+1 when stage N is approved.
 
-**5. Runs / Jobs** — Table with run id, type, project, source, start/end, duration, status, counts. Detail page with status timeline, log viewer, linked outputs, error summary, retry placeholder.
+## Your "talk to an agent first" instinct is correct
 
-**6. Sources** — Cards/table of sources with type (website, event page, directory, CSV, API, manual), health indicator, last successful run, records produced. Add/edit dialog.
+You shouldn't be hand-writing prompts like the Claude one you pasted. We should build a **Mission Builder chat** — a conversational interface that:
+1. You describe the goal in plain English
+2. An LLM (Lovable AI Gateway — Gemini/Claude/GPT, no API key needed) asks clarifying questions
+3. It proposes a multi-stage mission plan
+4. You approve, and it writes the job rows for you
 
-**7. Review Queue** — Toggle between **Inbox view** (list with bulk approve/reject/flag) and **Focus view** (one card at a time with keyboard shortcuts: A approve, R reject, F flag, T tag, → skip). Filters by project/source/confidence.
+This keeps prompt engineering out of your daily workflow.
 
-**8. Errors / System Health** — Status counters (failed, low-confidence, missing fields, retry-needed), filterable error list, grouping by run/source, retry placeholder.
+## Proposed phased build
 
-**9. Settings** — Tabs: Backend Connection (Supabase status placeholder with "Connect" CTA), Integrations (API keys placeholders), Workspaces, Tags manager, Status pipelines manager, Categories, Users & Roles (placeholder).
+I want to do this in 3 chat-sized phases so we don't bite off too much:
 
-## Mock data & backend-ready architecture
-- `src/mocks/` with realistic seed data across all entities (projects, runs, findings, contacts, sources, errors, tags, notes) covering Hotels, TEDx, NVRLand, Clients, General Research.
-- `src/lib/api/` with typed service modules (`projects.ts`, `records.ts`, `contacts.ts`, `runs.ts`, `sources.ts`, `notes.ts`, `errors.ts`) — each currently returns mock data via React Query, but signatures match what Supabase calls will look like. Swapping to Supabase later = changing the body of these functions only.
-- `src/types/` with shared entity types (Project, Record/Finding, Contact, Run, Source, Note, Error, Tag) — flexible/extensible field shapes so multiple verticals fit without redesign.
-- Workspace context provider feeds a `workspaceId` filter into every query.
+### Phase A — Foundation: Missions + Stages (this turn)
+- New tables: `missions`, `mission_stages`
+- A stage references a `job_type` and a `payload`
+- A stage has `depends_on_stage_id` and `status` (pending/queued/running/awaiting_review/approved/done)
+- When a stage finishes, an Edge Function checks if downstream stages can be auto-queued
+- New Mission Control page: Missions list + Mission detail (DAG view)
 
-## UX details
-- Empty states everywhere with helpful illustrations + CTA.
-- Loading skeletons on all tables/cards.
-- Toasts for actions (sonner).
-- Status badges + tag chips consistent across pages.
-- Action buttons (View, Review, Retry, Assign, Tag, Export, Mark Complete) wired to no-op handlers + toast confirmation, ready for backend.
-- Responsive: sidebar collapses to icons on tablet, becomes sheet on mobile; tables become stacked cards on mobile.
+### Phase B — Mission Builder chat
+- A `/missions/new` chat page using Lovable AI Gateway
+- LLM uses tool-calling to propose a mission plan as JSON
+- You review the plan, hit "Create Mission", it writes rows
+- Saves you from ever writing raw prompts again
 
-## Out of scope (placeholders only)
-Real Supabase wiring, auth, role enforcement, real exports, real retry execution, file uploads — all stubbed with clear "Connect backend" affordances.
+### Phase C — Connect downstream agents
+- `organizer_lookup` agent (Firecrawl on each event URL)
+- `contact_enrich` agent (Hunter.io / Apollo / Perplexity for emails + LinkedIn)
+- These read from `findings` produced by upstream stages
+
+## What I need from you before building
+
+I want to confirm 4 design choices before writing code. They're below.
+
+## Technical sketch (for reference)
+
+```text
+missions
+  id, name, description, status, created_by, created_at
+
+mission_stages
+  id, mission_id, order_index, name,
+  job_type, payload (jsonb),
+  depends_on_stage_id (nullable),
+  requires_review (bool, default true),
+  status, job_id (nullable), created_at
+
+flow:
+  user creates mission with N stages
+  → stage 1 auto-queued (creates a job row)
+  → worker runs job
+  → on complete: stage marked awaiting_review
+  → user clicks "Approve" → next stage queued with upstream output as input
+```
+
