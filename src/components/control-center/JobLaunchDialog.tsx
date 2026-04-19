@@ -98,8 +98,10 @@ export function JobLaunchDialog({ open, onOpenChange, defaultJobType }: JobLaunc
   const targetWorkspaceId = useMemo(() => {
     if (workspaceId !== "all") return workspaceId;
     if (projectId) return allProjects.find((p) => p.id === projectId)?.workspaceId;
+    // email_lookup can run cross-workspace (against all contacts) — fall back to first workspace
+    if (jobType === "email_lookup") return workspaces[0]?.id;
     return undefined;
-  }, [workspaceId, projectId]);
+  }, [workspaceId, projectId, jobType, workspaces]);
 
   const { mutate, isPending } = useMutation({
     mutationFn: async () => {
