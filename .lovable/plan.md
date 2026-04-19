@@ -57,8 +57,13 @@ Register the agent in `worker/signalhub_worker/registry.py`.
 3. Click **Queue stage** → worker picks it up → contacts get enriched in place.
 4. Approve the stage (or set `requires_review: false` if you want it auto-approve).
 
-## Open questions before I build
+## Decisions (locked in)
 
-- Quota: do you want me to default `max_lookups` to your monthly Hunter limit, or leave it unset (= enrich everything missing)?
-- Verification: Hunter's Email Finder returns a basic verification automatically; do you also want me to call the separate **Email Verifier** endpoint for stronger confidence (uses 1 extra credit per email)?
-- Re-enrichment: should the agent skip contacts already enriched within the last N days, or always overwrite when re-run?
+- **No quota cap.** `max_lookups` is optional in the payload, defaults to unlimited. The mission stage just enriches everything missing in scope.
+- **No automatic Email Verifier call.** Stage 3 only uses Email Finder (which includes basic verification for free). For stronger confidence on a specific contact, the user clicks a ✓ icon next to the email in the UI — that triggers a one-off verifier call on demand.
+- **Skip-if-recent default = 90 days.** Contacts with `enriched_at` within the last 90 days are skipped on re-run. Payload flag `force_reenrich: true` overrides and re-enriches everything in scope.
+
+## On-demand verify (per-contact)
+
+- Edge function: `verify-email` — accepts `{ contact_id }`, calls Hunter's `/v2/email-verifier` using the server-side `HUNTER_API_KEY`, writes `email_verification_status` + `email_score` + `enriched_at` back to the contact row, returns the result.
+- UI: small ✓ icon next to each email on the Contacts table and Contact detail page. Click → spinner → toast with result. Color of the icon reflects current verification status.
