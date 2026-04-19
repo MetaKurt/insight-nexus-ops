@@ -81,25 +81,30 @@ def detect_event_type(name: str) -> str:
 
 
 def split_city_state(location: str) -> tuple[Optional[str], Optional[str]]:
-    """Parse strings like 'San Francisco, California, United States' or
-    'Brooklyn, New York' (TED sometimes omits the country in the table)."""
+    """Parse TED location strings.
+
+    TED's table often renders location as multiline text like:
+      'Boca Raton\nFlorida'
+      'Brooklyn\nNew York\nUnited States'
+    but some contexts may flatten that into comma-separated text.
+    """
     if not location:
         return None, None
-    parts = [p.strip() for p in location.split(",") if p.strip()]
+
+    normalized = location.replace("\r", "\n")
+    parts = [p.strip() for p in re.split(r"[\n,]+", normalized) if p.strip()]
+    if not parts:
+        return None, None
+
+    if parts[-1].lower() in {"united states", "usa", "us"}:
+        parts = parts[:-1]
     if not parts:
         return None, None
     if len(parts) == 1:
         return parts[0], None
-    # If the last part looks like a country, drop it.
-    if parts[-1].lower() in {"united states", "usa", "us"}:
-        parts = parts[:-1]
-    if len(parts) == 1:
-        return parts[0], None
-    if len(parts) >= 3:
-        city = ", ".join(parts[:-1])
-        state = parts[-1]
-    else:
-        city, state = parts[0], parts[1]
+
+    city = ", ".join(parts[:-1])
+    state = parts[-1]
     return city, state
 
 
