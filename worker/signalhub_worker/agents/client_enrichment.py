@@ -60,7 +60,7 @@ def clean_text(s: Optional[str]) -> Optional[str]:
 class ClientEnrichmentAgent(BaseAgent):
     job_type = "client_enrichment"
 
-    AGENT_VERSION = "2026-04-19.v3-row-scope-and-co-organizers"
+AGENT_VERSION = "2026-04-19.v4-log-insert-errors"
 
     DEFAULT_MAX_FINDINGS = 200
     DEFAULT_MAX_CONTACTS = 1000
@@ -208,11 +208,13 @@ class ClientEnrichmentAgent(BaseAgent):
                             company_emails=company_emails,
                         )
 
-                        action = self._upsert_contact(sb, contact_row)
+                        action = self._upsert_contact(sb, contact_row, ctx)
                         if action == "inserted":
                             contacts_created += 1
                         elif action == "updated":
                             contacts_updated += 1
+                        elif action == "skipped":
+                            errors += 1
 
                     await asyncio.sleep(event_delay)
             finally:
@@ -587,17 +589,26 @@ class ClientEnrichmentAgent(BaseAgent):
         }
 
     @staticmethod
-    def _upsert_contact(sb, row: dict) -> str:
+    def _upsert_contact(sb, row: dict, ctx=None) -> str:
         """Insert if (finding_id, name) doesn't exist; else update.
 
-        Returns 'inserted', 'updated', or 'skipped'.
+        Returns 'inserted', 'updated', or 'skipped'. Logs errors via ctx
+        so we can see why writes are failing instead of silently dropping.
         """
+        def _log(level: str, msg: str) -> None:
+            if ctx is not None:
+                try:
+                    ctx.log(level, msg)
+                except Exception:  # noqa: BLE001
+                    pass
+
         try:
             existing = sb.table("contacts").select("id").eq(
                 "finding_id", row["finding_id"]
             ).eq("name", row["name"]).limit(1).execute()
             existing_rows = existing.data or []
-        except Exception:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001
+            _log("warning", f"contacts SELECT failed for {row.get('name')}: {exc}")
             existing_rows = []
 
         if existing_rows:
@@ -606,11 +617,17 @@ class ClientEnrichmentAgent(BaseAgent):
             try:
                 sb.table("contacts").update(update_payload).eq("id", contact_id).execute()
                 return "updated"
-            except Exception:  # noqa: BLE001
+            except Exception as exc:  # noqa: BLE001
+                _log("error", f"contacts UPDATE failed for {row.get('name')}: {exc}")
                 return "skipped"
 
         try:
             sb.table("contacts").insert(row).execute()
             return "inserted"
-        except Exception:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001
+            _log(
+                "error",
+                f"contacts INSERT failed for {row.get('name')!r} "
+                f"(finding={row.get('finding_id')}): {exc}",
+            )
             return "skipped"
