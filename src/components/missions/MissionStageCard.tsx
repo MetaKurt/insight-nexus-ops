@@ -1,11 +1,11 @@
 // Visual card for a single mission stage on the detail page.
-// Shows status, dependency, payload preview, and the right action button:
+// Shows status, dependency, payload preview, and the right action buttons:
 //   - pending + no dep (or dep done) → "Queue now"
-//   - awaiting_review                → "Approve & continue"
-//   - everything else                → just status
+//   - awaiting_review                → "Re-run" + "Approve & continue"
+//   - done/failed/skipped            → "Re-run" (so we can retry)
 
 import { Link } from "react-router-dom";
-import { AlertTriangle, ArrowRight, CheckCircle2, ExternalLink, PlayCircle } from "lucide-react";
+import { AlertTriangle, ArrowRight, CheckCircle2, ExternalLink, PlayCircle, RotateCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -25,6 +25,7 @@ interface Props {
   canQueue: boolean;
   onQueue: () => void;
   onApprove: () => void;
+  onRerun?: () => void;
   busy: boolean;
 }
 
@@ -35,10 +36,18 @@ export function MissionStageCard({
   canQueue,
   onQueue,
   onApprove,
+  onRerun,
   busy,
 }: Props) {
   const jobTypeLabel =
     jobTypeCatalog.find((t) => t.id === stage.job_type)?.label ?? stage.job_type;
+
+  const showRerun =
+    !!onRerun &&
+    (stage.status === "awaiting_review" ||
+      stage.status === "done" ||
+      stage.status === "failed" ||
+      stage.status === "skipped");
 
   return (
     <Card className="space-y-3 p-4">
@@ -96,6 +105,11 @@ export function MissionStageCard({
             <Button size="sm" onClick={onQueue} disabled={!canQueue || busy}>
               <PlayCircle className="mr-1 h-3.5 w-3.5" />
               {canQueue ? "Queue now" : "Waiting on upstream"}
+            </Button>
+          )}
+          {showRerun && (
+            <Button size="sm" variant="outline" onClick={onRerun} disabled={busy}>
+              <RotateCw className="mr-1 h-3.5 w-3.5" /> Re-run
             </Button>
           )}
           {stage.status === "awaiting_review" && (

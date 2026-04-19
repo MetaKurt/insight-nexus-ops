@@ -117,6 +117,23 @@ export const missionsApi = {
     return data;
   },
 
+  // Reset a stage back to pending and queue a fresh job for it.
+  // Useful when the worker logic changed and you want to retry without
+  // approving stale results.
+  async rerunStage(stageId: string) {
+    const { error: resetErr } = await supabase
+      .from("mission_stages")
+      .update({ status: "pending", job_id: null, approved_by: null, approved_at: null })
+      .eq("id", stageId);
+    if (resetErr) throw resetErr;
+
+    const { data, error } = await supabase.rpc("queue_mission_stage", {
+      p_stage_id: stageId,
+    });
+    if (error) throw error;
+    return data;
+  },
+
   async deleteMission(id: string) {
     const { error } = await supabase.from("missions").delete().eq("id", id);
     if (error) throw error;

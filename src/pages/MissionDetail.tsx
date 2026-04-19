@@ -91,6 +91,16 @@ export default function MissionDetail() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const rerunStage = useMutation({
+    mutationFn: (stageId: string) => missionsApi.rerunStage(stageId),
+    onSuccess: () => {
+      toast.success("Stage re-queued — new job created");
+      qc.invalidateQueries({ queryKey: ["mission-stages", id] });
+      qc.invalidateQueries({ queryKey: ["jobs"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const deleteMission = useMutation({
     mutationFn: () => missionsApi.deleteMission(id!),
     onSuccess: () => {
@@ -174,7 +184,8 @@ export default function MissionDetail() {
               canQueue={canQueueStage(stage.id)}
               onQueue={() => queueStage.mutate(stage.id)}
               onApprove={() => approveStage.mutate(stage.id)}
-              busy={queueStage.isPending || approveStage.isPending}
+              onRerun={() => rerunStage.mutate(stage.id)}
+              busy={queueStage.isPending || approveStage.isPending || rerunStage.isPending}
             />
           ))
         )}
