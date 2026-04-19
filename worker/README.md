@@ -114,6 +114,8 @@ If the version string doesn't match what's in the repo, the worker is
 still running stale code (most likely a second worker process or a systemd
 service is still up). Run `ps aux | grep signalhub_worker` to find it.
 
+## Adding a new agent
+
 1. Create `signalhub_worker/agents/my_new_agent.py`:
 
    ```python
