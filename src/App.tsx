@@ -25,6 +25,8 @@ import Errors from "./pages/Errors";
 import SettingsPage from "./pages/Settings";
 import ControlCenter from "./pages/ControlCenter";
 import JobDetail from "./pages/JobDetail";
+import Missions from "./pages/Missions";
+import MissionDetail from "./pages/MissionDetail";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -55,6 +57,8 @@ const App = () => (
                   <Route path="/errors" element={<Errors />} />
                   <Route path="/control-center" element={<ControlCenter />} />
                   <Route path="/control-center/jobs/:id" element={<JobDetail />} />
+                  <Route path="/missions" element={<Missions />} />
+                  <Route path="/missions/:id" element={<MissionDetail />} />
                   <Route path="/settings" element={<SettingsPage />} />
                 </Route>
               </Route>

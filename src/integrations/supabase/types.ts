@@ -250,6 +250,108 @@ export type Database = {
           },
         ]
       }
+      mission_stages: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          depends_on_stage_id: string | null
+          description: string | null
+          id: string
+          job_id: string | null
+          job_type: string
+          mission_id: string
+          name: string
+          order_index: number
+          payload: Json
+          requires_review: boolean
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          depends_on_stage_id?: string | null
+          description?: string | null
+          id?: string
+          job_id?: string | null
+          job_type: string
+          mission_id: string
+          name: string
+          order_index: number
+          payload?: Json
+          requires_review?: boolean
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          depends_on_stage_id?: string | null
+          description?: string | null
+          id?: string
+          job_id?: string | null
+          job_type?: string
+          mission_id?: string
+          name?: string
+          order_index?: number
+          payload?: Json
+          requires_review?: boolean
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mission_stages_depends_on_stage_id_fkey"
+            columns: ["depends_on_stage_id"]
+            isOneToOne: false
+            referencedRelation: "mission_stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_stages_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      missions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          project_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          project_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          project_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       projects: {
         Row: {
           created_at: string
@@ -377,6 +479,32 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      approve_mission_stage: {
+        Args: { p_approver?: string; p_stage_id: string }
+        Returns: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          depends_on_stage_id: string | null
+          description: string | null
+          id: string
+          job_id: string | null
+          job_type: string
+          mission_id: string
+          name: string
+          order_index: number
+          payload: Json
+          requires_review: boolean
+          status: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "mission_stages"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       claim_next_job: {
         Args: { p_job_types?: string[]; p_worker_id: string }
         Returns: {
@@ -411,6 +539,32 @@ export type Database = {
           p_records_created?: number
           p_status: string
         }
+        Returns: {
+          cancelled_at: string | null
+          completed_at: string | null
+          created_at: string
+          errors_count: number
+          id: string
+          job_type: string
+          notes: string | null
+          payload: Json
+          priority: number
+          project_id: string | null
+          records_created: number
+          requested_by: string | null
+          started_at: string | null
+          status: string
+          worker_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "jobs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      queue_mission_stage: {
+        Args: { p_stage_id: string }
         Returns: {
           cancelled_at: string | null
           completed_at: string | null
