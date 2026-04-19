@@ -5,13 +5,18 @@
 //   - everything else                → just status
 
 import { Link } from "react-router-dom";
-import { ArrowRight, CheckCircle2, ExternalLink, PlayCircle } from "lucide-react";
+import { AlertTriangle, ArrowRight, CheckCircle2, ExternalLink, PlayCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/StatusBadge";
 import type { MissionStage } from "@/types/missions";
 import { jobTypeCatalog } from "@/mocks/jobs";
+
+// Worker agents currently registered in worker/signalhub_worker/registry.py.
+// Keep in sync. If a stage's job_type isn't here, queueing produces a job
+// no worker can claim — show a warning before the user clicks Approve.
+const REGISTERED_AGENTS = new Set<string>(["hello", "tedx_scrape"]);
 
 interface Props {
   stage: MissionStage;
