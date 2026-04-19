@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 
 import { api } from "@/lib/api";
 import { jobTypeCatalog } from "@/mocks/jobs";
@@ -54,6 +55,9 @@ export function JobLaunchDialog({ open, onOpenChange, defaultJobType }: JobLaunc
   const [yearsStr, setYearsStr] = useState("2026, 2027");
   const [availableOnly, setAvailableOnly] = useState(true);
   const [maxPages, setMaxPages] = useState<string>("10");
+  // email_lookup specific
+  const [maxLookups, setMaxLookups] = useState<string>("10");
+  const [forceReenrich, setForceReenrich] = useState(false);
 
   const definition: JobTypeDefinition =
     jobTypeCatalog.find((d) => d.id === jobType) ?? jobTypeCatalog[0];
@@ -77,6 +81,8 @@ export function JobLaunchDialog({ open, onOpenChange, defaultJobType }: JobLaunc
       setYearsStr("2026, 2027");
       setAvailableOnly(true);
       setMaxPages("10");
+      setMaxLookups("10");
+      setForceReenrich(false);
     }
   }, [open, defaultJobType]);
 
@@ -117,6 +123,10 @@ export function JobLaunchDialog({ open, onOpenChange, defaultJobType }: JobLaunc
           years: parsedYears.length ? parsedYears : undefined,
           available_only: availableOnly,
           max_pages: maxPages ? Number(maxPages) : undefined,
+        }),
+        ...(jobType === "email_lookup" && {
+          max_lookups: maxLookups ? Number(maxLookups) : undefined,
+          force_reenrich: forceReenrich || undefined,
         }),
       };
       return api.jobs.create({
