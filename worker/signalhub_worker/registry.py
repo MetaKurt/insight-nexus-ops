@@ -9,10 +9,12 @@ from __future__ import annotations
 from typing import Dict, Type
 
 from .agents.base import BaseAgent
+from .agents.client_enrichment import ClientEnrichmentAgent
 from .agents.hello import HelloAgent
 from .agents.tedx_scrape import TedxScrapeAgent
 
 REGISTRY: Dict[str, Type[BaseAgent]] = {
     HelloAgent.job_type: HelloAgent,
     TedxScrapeAgent.job_type: TedxScrapeAgent,
+    ClientEnrichmentAgent.job_type: ClientEnrichmentAgent,
 }
