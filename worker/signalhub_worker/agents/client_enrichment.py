@@ -60,7 +60,7 @@ def clean_text(s: Optional[str]) -> Optional[str]:
 class ClientEnrichmentAgent(BaseAgent):
     job_type = "client_enrichment"
 
-    AGENT_VERSION = "2026-04-19.v1"
+    AGENT_VERSION = "2026-04-19.v2-section-scope"
 
     DEFAULT_MAX_FINDINGS = 200
     DEFAULT_MAX_CONTACTS = 1000
@@ -308,8 +308,13 @@ class ClientEnrichmentAgent(BaseAgent):
               );
               if (!orgHeading) return out;
 
-              // Walk forward through siblings until we hit another section.
-              let container = orgHeading.parentElement;
+              // The heading sits in a left-side column (`.col-lg-3`) while
+              // the organizer cards live in a sibling column (`.col-lg-6`)
+              // inside the SAME `.section` row. Walk UP to the nearest
+              // `.section` (or `.row`) and search the whole subtree.
+              let container = orgHeading.closest('.section') ||
+                              orgHeading.closest('.row') ||
+                              orgHeading.parentElement;
               if (!container) return out;
 
               // Find every profile link inside this container — TED renders
