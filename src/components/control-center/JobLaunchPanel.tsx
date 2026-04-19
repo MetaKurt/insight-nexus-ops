@@ -25,6 +25,7 @@ const iconMap: Record<JobType, typeof Sparkles> = {
   hotel_lead_research: Building2,
   nvrland_research: Gem,
   client_enrichment: UserPlus2,
+  email_lookup: Mail,
   retry_failed_records: RefreshCw,
   refresh_source_scan: RadioTower,
   export_data: Download,
