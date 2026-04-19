@@ -14,7 +14,364 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      contacts: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          email: string | null
+          finding_id: string | null
+          id: string
+          name: string | null
+          notes: string | null
+          organization: string | null
+          outreach_status: string | null
+          phone: string | null
+          project_id: string | null
+          role_title: string | null
+          social_url: string | null
+          source: string | null
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          email?: string | null
+          finding_id?: string | null
+          id?: string
+          name?: string | null
+          notes?: string | null
+          organization?: string | null
+          outreach_status?: string | null
+          phone?: string | null
+          project_id?: string | null
+          role_title?: string | null
+          social_url?: string | null
+          source?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          email?: string | null
+          finding_id?: string | null
+          id?: string
+          name?: string | null
+          notes?: string | null
+          organization?: string | null
+          outreach_status?: string | null
+          phone?: string | null
+          project_id?: string | null
+          role_title?: string | null
+          social_url?: string | null
+          source?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_finding_id_fkey"
+            columns: ["finding_id"]
+            isOneToOne: false
+            referencedRelation: "findings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      findings: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          data: Json
+          id: string
+          project_id: string | null
+          run_id: string | null
+          source_type: string | null
+          source_url: string | null
+          status: string | null
+          summary: string | null
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          data?: Json
+          id?: string
+          project_id?: string | null
+          run_id?: string | null
+          source_type?: string | null
+          source_url?: string | null
+          status?: string | null
+          summary?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          data?: Json
+          id?: string
+          project_id?: string | null
+          run_id?: string | null
+          source_type?: string | null
+          source_url?: string | null
+          status?: string | null
+          summary?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "findings_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "findings_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_logs: {
+        Row: {
+          created_at: string
+          id: number
+          job_id: string
+          level: string
+          message: string
+          worker_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          job_id: string
+          level?: string
+          message: string
+          worker_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          job_id?: string
+          level?: string
+          message?: string
+          worker_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_logs_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_logs_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "workers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jobs: {
+        Row: {
+          cancelled_at: string | null
+          completed_at: string | null
+          created_at: string
+          errors_count: number
+          id: string
+          job_type: string
+          notes: string | null
+          payload: Json
+          priority: number
+          project_id: string | null
+          records_created: number
+          requested_by: string | null
+          started_at: string | null
+          status: string
+          worker_id: string | null
+        }
+        Insert: {
+          cancelled_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          errors_count?: number
+          id?: string
+          job_type: string
+          notes?: string | null
+          payload?: Json
+          priority?: number
+          project_id?: string | null
+          records_created?: number
+          requested_by?: string | null
+          started_at?: string | null
+          status?: string
+          worker_id?: string | null
+        }
+        Update: {
+          cancelled_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          errors_count?: number
+          id?: string
+          job_type?: string
+          notes?: string | null
+          payload?: Json
+          priority?: number
+          project_id?: string | null
+          records_created?: number
+          requested_by?: string | null
+          started_at?: string | null
+          status?: string
+          worker_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jobs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      runs: {
+        Row: {
+          completed_at: string | null
+          id: string
+          job_id: string | null
+          project_id: string | null
+          run_type: string | null
+          source_type: string | null
+          started_at: string | null
+          status: string | null
+          summary: Json | null
+        }
+        Insert: {
+          completed_at?: string | null
+          id?: string
+          job_id?: string | null
+          project_id?: string | null
+          run_type?: string | null
+          source_type?: string | null
+          started_at?: string | null
+          status?: string | null
+          summary?: Json | null
+        }
+        Update: {
+          completed_at?: string | null
+          id?: string
+          job_id?: string | null
+          project_id?: string | null
+          run_type?: string | null
+          source_type?: string | null
+          started_at?: string | null
+          status?: string | null
+          summary?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "runs_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "runs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workers: {
+        Row: {
+          created_at: string
+          current_job_id: string | null
+          environment: string | null
+          id: string
+          last_heartbeat: string | null
+          machine_name: string
+          status: string
+          updated_at: string
+          version: string | null
+        }
+        Insert: {
+          created_at?: string
+          current_job_id?: string | null
+          environment?: string | null
+          id?: string
+          last_heartbeat?: string | null
+          machine_name: string
+          status?: string
+          updated_at?: string
+          version?: string | null
+        }
+        Update: {
+          created_at?: string
+          current_job_id?: string | null
+          environment?: string | null
+          id?: string
+          last_heartbeat?: string | null
+          machine_name?: string
+          status?: string
+          updated_at?: string
+          version?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workers_current_job_id_fkey"
+            columns: ["current_job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
