@@ -21,9 +21,7 @@ import type {
 } from "@/types";
 import type { Job, JobLog, JobPayload, JobPriority, JobType, Worker } from "@/types/jobs";
 import {
-  contacts as mockContacts,
   errors as mockErrors,
-  findings as mockFindings,
   notes as mockNotes,
   projects as mockProjects,
   runs as mockRuns,
