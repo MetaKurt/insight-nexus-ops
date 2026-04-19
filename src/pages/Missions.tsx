@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Plus, Sparkles, Target } from "lucide-react";
 
 import { PageHeader } from "@/components/PageHeader";
@@ -15,6 +15,7 @@ import { missionsApi } from "@/lib/missionsApi";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function Missions() {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
   const { data: missions = [], isLoading } = useQuery({
@@ -68,7 +69,7 @@ export default function Missions() {
           icon={Target}
           title="No missions yet"
           description="Compose a multi-stage pipeline — for example: discover events → enrich organizers → find emails."
-          action={{ label: "Create your first mission", onClick: () => setOpen(true) }}
+          action={{ label: "Build with AI", onClick: () => navigate("/missions/new") }}
         />
       ) : (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
