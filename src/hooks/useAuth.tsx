@@ -1,35 +1,28 @@
 // Lightweight auth context. Subscribes to Supabase auth state changes and
-// exposes the current session/user. Mount <AuthProvider> once at the root.
+// exposes the current session/user.
 //
 // IMPORTANT: onAuthStateChange MUST be set up before getSession() to avoid
 // missing the initial event in some browsers.
+//
+// NOTE: keep the context object in a separate module (./authContext) so that
+// React Fast Refresh doesn't create a second context instance during HMR,
+// which causes "useAuth must be used inside <AuthProvider>" errors.
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import type { Session, User } from "@supabase/supabase-js";
+import { useEffect, useState, type ReactNode } from "react";
+import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-
-interface AuthContextValue {
-  session: Session | null;
-  user: User | null;
-  loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signOut: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+import { AuthContext, useAuthContext } from "./authContext";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1) Subscribe FIRST so we don't miss the initial event.
     const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
       setLoading(false);
     });
 
-    // 2) Then hydrate from any existing session.
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setLoading(false);
@@ -58,8 +51,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used inside <AuthProvider>");
-  return ctx;
-}
+export const useAuth = useAuthContext;
