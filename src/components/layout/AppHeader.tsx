@@ -13,9 +13,25 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 export function AppHeader() {
   const { workspaces, workspaceId, setWorkspaceId, current } = useWorkspace();
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success("Signed out");
+    navigate("/auth", { replace: true });
+  };
+
+  const initials = (user?.email ?? "U")
+    .split("@")[0]
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border/60 bg-background/80 px-4 backdrop-blur">
@@ -85,17 +101,19 @@ export function AppHeader() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="h-9 gap-2 px-2">
               <Avatar className="h-7 w-7">
-                <AvatarFallback className="bg-primary/15 text-xs font-semibold text-primary">MC</AvatarFallback>
+                <AvatarFallback className="bg-primary/15 text-xs font-semibold text-primary">
+                  {initials}
+                </AvatarFallback>
               </Avatar>
-              <span className="hidden text-sm font-medium md:inline">Maya</span>
+              <span className="hidden text-sm font-medium md:inline">
+                {user?.email?.split("@")[0] ?? "Account"}
+              </span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuLabel>maya@signalhub.io</DropdownMenuLabel>
+            <DropdownMenuLabel>{user?.email ?? "Signed in"}</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Profile</DropdownMenuItem>
-            <DropdownMenuItem>Workspace settings</DropdownMenuItem>
-            <DropdownMenuItem>Sign out</DropdownMenuItem>
+            <DropdownMenuItem onClick={handleSignOut}>Sign out</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
