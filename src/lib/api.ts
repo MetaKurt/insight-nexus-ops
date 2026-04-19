@@ -57,7 +57,7 @@ function rowToFinding(r: FindingRow): Finding {
     else if (typeof v === "boolean") extracted[k] = v ? "yes" : "no";
     else extracted[k] = JSON.stringify(v).slice(0, 200);
   }
-  const knownTypes = new Set(["website", "event_page", "social", "directory", "manual", "csv", "api"]);
+  const knownTypes = new Set(["website", "event_page", "social", "directory", "manual", "csv", "api", "tedx_events"]);
   const rawType = (r.source_type ?? "").toLowerCase();
   const sourceType = (knownTypes.has(rawType) ? rawType : "api") as Finding["sourceType"];
   // Confidence in DB is 0–1; UI expects 0–100.
