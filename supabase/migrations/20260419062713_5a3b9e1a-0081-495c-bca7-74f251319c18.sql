@@ -1,0 +1,1 @@
+CREATE POLICY "anon_insert_jobs" ON public.jobs FOR INSERT TO anon WITH CHECK (true);
