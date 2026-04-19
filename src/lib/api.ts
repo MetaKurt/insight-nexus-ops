@@ -83,6 +83,58 @@ function rowToFinding(r: FindingRow): Finding {
   };
 }
 
+// Maps a Supabase `contacts` row → the UI `Contact` shape.
+type ContactRow = {
+  id: string;
+  project_id: string | null;
+  finding_id: string | null;
+  name: string | null;
+  organization: string | null;
+  role_title: string | null;
+  email: string | null;
+  phone: string | null;
+  website: string | null;
+  social_url: string | null;
+  source: string | null;
+  confidence: number | null;
+  outreach_status: string | null;
+  notes: string | null;
+  created_at: string;
+};
+
+function rowToContact(r: ContactRow): Contact {
+  const knownOutreach = new Set([
+    "not_contacted", "queued", "contacted", "replied", "bounced", "do_not_contact",
+  ]);
+  const rawOutreach = (r.outreach_status ?? "not_contacted").toLowerCase();
+  const outreachStatus = (knownOutreach.has(rawOutreach) ? rawOutreach : "not_contacted") as Contact["outreachStatus"];
+  const cn = r.confidence == null ? 0 : Number(r.confidence);
+  const conf = Math.round(cn <= 1 ? cn * 100 : cn);
+  const social: Contact["social"] = {};
+  if (r.social_url) {
+    if (/linkedin\.com/i.test(r.social_url)) social.linkedin = r.social_url;
+    else if (/twitter\.com|x\.com/i.test(r.social_url)) social.twitter = r.social_url;
+    else if (/instagram\.com/i.test(r.social_url)) social.instagram = r.social_url;
+  }
+  return {
+    id: r.id,
+    workspaceId: "",
+    projectId: r.project_id ?? undefined,
+    name: r.name ?? "(unnamed)",
+    organization: r.organization ?? undefined,
+    role: r.role_title ?? undefined,
+    email: r.email ?? undefined,
+    phone: r.phone ?? undefined,
+    website: r.website ?? undefined,
+    social: Object.keys(social).length ? social : undefined,
+    source: r.source ?? "manual",
+    confidence: conf,
+    outreachStatus,
+    notes: r.notes ?? undefined,
+    createdAt: r.created_at,
+  };
+}
+
 const delay = <T,>(value: T, ms = 250): Promise<T> =>
   new Promise((resolve) => setTimeout(() => resolve(value), ms));
 
@@ -122,10 +174,25 @@ export const api = {
     },
   },
   contacts: {
-    list: (workspaceId?: string | null): Promise<Contact[]> =>
-      delay(filterByWorkspace(mockContacts, workspaceId)),
-    get: (id: string): Promise<Contact | undefined> =>
-      delay(mockContacts.find((c) => c.id === id)),
+    // Live Supabase-backed contacts.
+    list: async (_workspaceId?: string | null): Promise<Contact[]> => {
+      const { data, error } = await supabase
+        .from("contacts")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(1000);
+      if (error) throw error;
+      return (data ?? []).map(rowToContact);
+    },
+    get: async (id: string): Promise<Contact | undefined> => {
+      const { data, error } = await supabase
+        .from("contacts")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+      if (error) throw error;
+      return data ? rowToContact(data) : undefined;
+    },
   },
   runs: {
     list: (workspaceId?: string | null): Promise<Run[]> =>
