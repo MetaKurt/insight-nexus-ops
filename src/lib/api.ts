@@ -39,11 +39,6 @@ const delay = <T,>(value: T, ms = 250): Promise<T> =>
 const filterByWorkspace = <T extends { workspaceId: string }>(items: T[], workspaceId?: string | null) =>
   !workspaceId || workspaceId === "all" ? items : items.filter((i) => i.workspaceId === workspaceId);
 
-// Helper: enrich a list of jobs with their worker machine_name in one extra query.
-const attachWorkerNames = async (rows: Awaited<ReturnType<typeof supabase.from<"jobs", never>["select"]>>["data"]) => {
-  // No-op stub for when rows is null/empty; real impl below.
-  return rows;
-};
 
 export const api = {
   workspaces: {
@@ -228,5 +223,3 @@ export const api = {
   },
 };
 
-// Suppress unused-helper lint while keeping the helper available for future enrichment.
-void attachWorkerNames;
