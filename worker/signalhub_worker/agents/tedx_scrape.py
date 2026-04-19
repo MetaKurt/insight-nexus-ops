@@ -323,9 +323,9 @@ class TedxScrapeAgent(BaseAgent):
                                 page_skipped_no_space += 1
                                 continue
 
-                            name = (row.get("name") or "").strip()
-                            location = (row.get("location") or "").strip()
-                            date_text = (row.get("date_text") or "").strip()
+                            name = clean_text(row.get("name")) or ""
+                            location = clean_text(row.get("location")) or ""
+                            date_text = clean_text(row.get("date_text")) or ""
 
                             city, state_raw = split_city_state(location)
                             if country and country.lower() in {"united states", "usa", "us"}:
