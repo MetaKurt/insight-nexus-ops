@@ -1,1 +1,4 @@
 project_id = "iwpjlenmopdsaswqdlop"
+
+[functions.mission-builder]
+verify_jwt = false
