@@ -60,7 +60,7 @@ def clean_text(s: Optional[str]) -> Optional[str]:
 class ClientEnrichmentAgent(BaseAgent):
     job_type = "client_enrichment"
 
-    AGENT_VERSION = "2026-04-20.v7-speaker-photos"
+    AGENT_VERSION = "2026-04-20.v8-speaker-bio-from-div"
     EVENT_RETRY_ATTEMPTS = 2
 
     DEFAULT_MAX_FINDINGS = 200
@@ -525,61 +525,47 @@ class ClientEnrichmentAgent(BaseAgent):
             """
             () => {
               const out = [];
+              // Find the "Speakers" heading. TED uses h3 with class "h3".
               const headings = Array.from(document.querySelectorAll('h2, h3'));
               const speakersH = headings.find(h =>
                 /^speakers$/i.test((h.innerText || '').trim())
               );
               if (!speakersH) return out;
 
-              // Walk forward through siblings (and into containers) until we
-              // hit the next h2/h3 (e.g. "Organizing team", "Sponsors").
-              // Speakers may be inside the same parent as the heading or in
-              // following sibling containers.
-              const stopRe = /^(organizing team|sponsors|partners|location)/i;
+              // The speakers list lives in a sibling <div class="col col-lg-6">
+              // next to the "Speakers" h3 heading's column. Walk up to the
+              // shared row, then find the content column.
+              let row = speakersH.closest('.row');
+              if (!row) return out;
 
-              // Collect h4/h5/p AND img nodes after the speakers heading,
-              // stopping at the next h2/h3 stop heading.
-              const all = Array.from(document.querySelectorAll('h2, h3, h4, h5, p, img'));
-              const startIdx = all.indexOf(speakersH);
-              if (startIdx < 0) return out;
+              // Each speaker is a <div class="m3"> containing <h4>name</h4>,
+              // <h5>role</h5>, then bio as a free text node (NOT in <p>).
+              const speakerCards = row.querySelectorAll('div.m3');
+              speakerCards.forEach(card => {
+                const h4 = card.querySelector('h4');
+                const h5 = card.querySelector('h5');
+                if (!h4) return;
+                const name = (h4.innerText || '').replace(/\\s+/g, ' ').trim();
+                if (!name) return;
+                const role = h5 ? (h5.innerText || '').replace(/\\s+/g, ' ').trim() : '';
 
-              const slice = [];
-              for (let i = startIdx + 1; i < all.length; i++) {
-                const el = all[i];
-                const tag = el.tagName.toLowerCase();
-                const txt = (el.innerText || '').trim();
-                if ((tag === 'h2' || tag === 'h3') && stopRe.test(txt)) break;
-                slice.push(el);
-              }
+                // Bio = full card text minus name and role.
+                let fullText = (card.innerText || '').replace(/\\s+/g, ' ').trim();
+                if (name) fullText = fullText.replace(name, '').trim();
+                if (role) fullText = fullText.replace(role, '').trim();
+                const bio = fullText;
 
-              // Group: each h4 starts a new speaker; collect following h5 + p
-              // until the next h4. Photos: grab the most recent <img> seen
-              // before the h4 (TED renders photo, then name, then role).
-              let current = null;
-              let pendingPhoto = '';
-              for (const el of slice) {
-                const tag = el.tagName.toLowerCase();
-                if (tag === 'img') {
-                  const src = el.getAttribute('src') || el.getAttribute('data-src') || '';
-                  // Skip tiny icons / sponsor logos by requiring a TED image host
-                  if (src && /pi\.tedcdn\.com|tedcdn|ted\.com\/.*\/(speaker|profile|user)/i.test(src)) {
-                    pendingPhoto = src;
-                  }
-                  continue;
+                // Photo: usually no photo for speakers on TEDx event pages,
+                // but try one anyway in case TED ever adds them.
+                const img = card.querySelector('img');
+                let photo = '';
+                if (img) {
+                  const src = img.getAttribute('src') || img.getAttribute('data-src') || '';
+                  if (src && /pi\\.tedcdn\\.com|tedcdn/i.test(src)) photo = src;
                 }
-                const txt = (el.innerText || '').replace(/\\s+/g, ' ').trim();
-                if (!txt) continue;
-                if (tag === 'h4') {
-                  if (current) out.push(current);
-                  current = { name: txt, role: '', bio: '', photo_url: pendingPhoto };
-                  pendingPhoto = '';
-                } else if (current && tag === 'h5' && !current.role) {
-                  current.role = txt;
-                } else if (current && tag === 'p') {
-                  current.bio = (current.bio ? current.bio + ' ' : '') + txt;
-                }
-              }
-              if (current) out.push(current);
+
+                out.push({ name, role, bio, photo_url: photo });
+              });
 
               return out.filter(s => s.name && s.name.length <= 120);
             }
