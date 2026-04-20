@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
+import { EventContactsCard } from "@/components/records/EventContactsCard";
 
 export default function RecordDetail() {
   const { id = "" } = useParams();
@@ -90,6 +91,8 @@ export default function RecordDetail() {
           </CardContent>
         </Card>
       </div>
+
+      <EventContactsCard findingId={f.id} />
 
       <Card className="bg-surface-elevated border-border/60">
         <CardHeader><CardTitle className="text-base">Activity</CardTitle></CardHeader>
