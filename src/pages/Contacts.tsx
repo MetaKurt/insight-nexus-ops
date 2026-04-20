@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { Users, Mail, Phone, Linkedin, Twitter, Sparkles } from "lucide-react";
+import { Users, Mail, Phone, Linkedin, Twitter, Sparkles, Globe } from "lucide-react";
 
 import { PageHeader } from "@/components/PageHeader";
 import { FilterBar } from "@/components/FilterBar";
@@ -24,6 +24,30 @@ const emailFilters = [
   { value: "with", label: "Has email" },
   { value: "without", label: "Missing email" },
 ];
+
+// Domains that aren't real company websites — Hunter can't use them and the
+// globe icon would be misleading. Keep in sync with worker/agents/contact_web_enrich.py.
+const BLOCKED_WEBSITE_HOSTS = new Set([
+  "ted.com", "linkedin.com", "twitter.com", "x.com",
+  "facebook.com", "fb.com", "instagram.com",
+  "youtube.com", "youtu.be", "tiktok.com",
+  "eventbrite.com", "meetup.com", "wikipedia.org", "medium.com",
+]);
+
+function normalizeUrl(raw: string): string {
+  return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+}
+
+function isRealCompanyWebsite(raw?: string | null): boolean {
+  if (!raw) return false;
+  try {
+    const host = new URL(normalizeUrl(raw)).hostname.toLowerCase().replace(/^www\./, "");
+    if (!host.includes(".")) return false;
+    return !BLOCKED_WEBSITE_HOSTS.has(host);
+  } catch {
+    return false;
+  }
+}
 
 export default function Contacts() {
   const { workspaceId } = useWorkspace();
@@ -149,20 +173,37 @@ export default function Contacts() {
                       </div>
                     )}
                     {c.phone && <div className="flex items-center gap-1 text-muted-foreground"><Phone className="h-3 w-3" /> {c.phone}</div>}
-                    {(c.social?.linkedin || c.social?.twitter) && (
-                      <div className="flex items-center gap-2 pt-0.5">
-                        {c.social?.linkedin && (
-                          <a href={c.social.linkedin} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-primary" aria-label="LinkedIn">
-                            <Linkedin className="h-3 w-3" />
-                          </a>
-                        )}
-                        {c.social?.twitter && (
-                          <a href={c.social.twitter} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-primary" aria-label="Twitter">
-                            <Twitter className="h-3 w-3" />
-                          </a>
-                        )}
-                      </div>
-                    )}
+                    {(() => {
+                      const realWebsite = isRealCompanyWebsite(c.website);
+                      const hasAny = c.social?.linkedin || c.social?.twitter || realWebsite;
+                      if (!hasAny) return null;
+                      return (
+                        <div className="flex items-center gap-2 pt-0.5">
+                          {c.social?.linkedin && (
+                            <a href={c.social.linkedin} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-primary" aria-label="LinkedIn">
+                              <Linkedin className="h-3 w-3" />
+                            </a>
+                          )}
+                          {c.social?.twitter && (
+                            <a href={c.social.twitter} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-primary" aria-label="Twitter">
+                              <Twitter className="h-3 w-3" />
+                            </a>
+                          )}
+                          {realWebsite && (
+                            <a
+                              href={normalizeUrl(c.website!)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-muted-foreground hover:text-primary"
+                              aria-label={`Website: ${c.website}`}
+                              title={c.website}
+                            >
+                              <Globe className="h-3 w-3" />
+                            </a>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">{c.source}</TableCell>
                   <TableCell><ConfidenceMeter value={c.confidence} /></TableCell>
