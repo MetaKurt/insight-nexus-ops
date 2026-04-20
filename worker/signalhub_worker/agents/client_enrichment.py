@@ -61,6 +61,7 @@ class ClientEnrichmentAgent(BaseAgent):
     job_type = "client_enrichment"
 
     AGENT_VERSION = "2026-04-20.v6-speakers"
+    EVENT_RETRY_ATTEMPTS = 2
 
     DEFAULT_MAX_FINDINGS = 200
     DEFAULT_MAX_CONTACTS = 1000
@@ -129,15 +130,11 @@ class ClientEnrichmentAgent(BaseAgent):
         errors = 0
 
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=settings.headless)
+            browser = None
+            context = None
+            page = None
             try:
-                context = await browser.new_context(
-                    user_agent=(
-                        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-                        "(KHTML, like Gecko) Chrome/127.0 Safari/537.36"
-                    )
-                )
-                page = await context.new_page()
+                browser, context, page = await self._new_browser_session(p)
 
                 for i, finding in enumerate(findings, start=1):
                     if contacts_created + contacts_updated >= max_contacts:
@@ -151,20 +148,37 @@ class ClientEnrichmentAgent(BaseAgent):
                         ctx.log("warning", f"Finding {finding_id} has no source_url, skipping.")
                         continue
 
-                    try:
-                        organizers = await self._extract_organizers_from_event(page, event_url)
-                    except Exception as exc:  # noqa: BLE001
+                    organizers: List[dict] = []
+                    speakers: List[dict] = []
+                    loaded = False
+                    for attempt in range(1, self.EVENT_RETRY_ATTEMPTS + 1):
+                        try:
+                            if page is None or page.is_closed():
+                                browser, context, page = await self._new_browser_session(p)
+                            organizers = await self._extract_organizers_from_event(page, event_url)
+                            speakers = await self._extract_speakers_from_event(page, event_url)
+                            loaded = True
+                            break
+                        except Exception as exc:  # noqa: BLE001
+                            if self._is_session_crash(exc):
+                                ctx.log(
+                                    "warning",
+                                    f"Browser session died while loading {event_url} "
+                                    f"(attempt {attempt}/{self.EVENT_RETRY_ATTEMPTS}); restarting session.",
+                                )
+                                await self._safe_close(page, context, browser)
+                                browser, context, page = await self._new_browser_session(p)
+                                continue
+
+                            errors += 1
+                            ctx.log("error", f"Failed to load event {event_url}: {exc}")
+                            break
+
+                    if not loaded:
                         errors += 1
-                        ctx.log("error", f"Failed to load event {event_url}: {exc}")
+                        ctx.log("error", f"Failed to load event {event_url} after retry.")
                         await asyncio.sleep(event_delay)
                         continue
-
-                    # ── NEW: speakers from the same event page ──
-                    speakers: List[dict] = []
-                    try:
-                        speakers = await self._extract_speakers_from_event(page, event_url)
-                    except Exception as exc:  # noqa: BLE001
-                        ctx.log("warning", f"Speaker extraction failed for {event_url}: {exc}")
 
                     if not organizers and not speakers:
                         ctx.log("info", f"[{i}/{len(findings)}] {event_title} → 0 organizers, 0 speakers")
@@ -202,9 +216,16 @@ class ClientEnrichmentAgent(BaseAgent):
                         profile = {}
                         if org.get("profile_url"):
                             try:
+                                if page is None or page.is_closed():
+                                    browser, context, page = await self._new_browser_session(p)
                                 profile = await self._extract_profile(page, org["profile_url"])
                                 await asyncio.sleep(profile_delay)
                             except Exception as exc:  # noqa: BLE001
+                                if self._is_session_crash(exc):
+                                    ctx.log("warning", f"Browser session died while loading profile for {org.get('name')}; restarting session.")
+                                    await self._safe_close(page, context, browser)
+                                    browser, context, page = await self._new_browser_session(p)
+                                
                                 errors += 1
                                 ctx.log(
                                     "warning",
@@ -215,11 +236,17 @@ class ClientEnrichmentAgent(BaseAgent):
                         company_emails: List[str] = []
                         if follow_company_links and profile.get("website"):
                             try:
+                                if page is None or page.is_closed():
+                                    browser, context, page = await self._new_browser_session(p)
                                 company_emails = await self._extract_emails_from_company(
                                     page, profile["website"]
                                 )
                                 await asyncio.sleep(profile_delay)
                             except Exception as exc:  # noqa: BLE001
+                                if self._is_session_crash(exc):
+                                    ctx.log("warning", f"Browser session died while loading company site {profile.get('website')}; restarting session.")
+                                    await self._safe_close(page, context, browser)
+                                    browser, context, page = await self._new_browser_session(p)
                                 ctx.log(
                                     "debug",
                                     f"Company page fetch failed for {profile.get('website')}: {exc}",
@@ -243,7 +270,7 @@ class ClientEnrichmentAgent(BaseAgent):
 
                     await asyncio.sleep(event_delay)
             finally:
-                await browser.close()
+                await self._safe_close(page, context, browser)
 
         summary = (
             f"Enriched {len(findings)} events → "
@@ -313,6 +340,39 @@ class ClientEnrichmentAgent(BaseAgent):
             q = q.eq("project_id", project_id)
         q = q.order("created_at", desc=True).limit(max_findings)
         return q.execute().data or []
+
+    @staticmethod
+    async def _new_browser_session(playwright):
+        browser = await playwright.chromium.launch(headless=settings.headless)
+        context = await browser.new_context(
+            user_agent=(
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/127.0 Safari/537.36"
+            )
+        )
+        page = await context.new_page()
+        return browser, context, page
+
+    @staticmethod
+    async def _safe_close(page, context, browser) -> None:
+        for obj in (page, context, browser):
+            if obj is None:
+                continue
+            try:
+                await obj.close()
+            except Exception:  # noqa: BLE001
+                pass
+
+    @staticmethod
+    def _is_session_crash(exc: Exception) -> bool:
+        msg = str(exc).lower()
+        return any(token in msg for token in (
+            "target page, context or browser has been closed",
+            "browser has been closed",
+            "target crashed",
+            "page crashed",
+            "context has been closed",
+        ))
 
     # ── Page extraction ───────────────────────────────────────────────
     @staticmethod
