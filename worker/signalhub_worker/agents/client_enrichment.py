@@ -60,7 +60,7 @@ def clean_text(s: Optional[str]) -> Optional[str]:
 class ClientEnrichmentAgent(BaseAgent):
     job_type = "client_enrichment"
 
-    AGENT_VERSION = "2026-04-19.v5-link-event"
+    AGENT_VERSION = "2026-04-20.v6-speakers"
 
     DEFAULT_MAX_FINDINGS = 200
     DEFAULT_MAX_CONTACTS = 1000
@@ -159,15 +159,40 @@ class ClientEnrichmentAgent(BaseAgent):
                         await asyncio.sleep(event_delay)
                         continue
 
-                    if not organizers:
-                        ctx.log("info", f"[{i}/{len(findings)}] {event_title} → 0 organizers")
+                    # ── NEW: speakers from the same event page ──
+                    speakers: List[dict] = []
+                    try:
+                        speakers = await self._extract_speakers_from_event(page, event_url)
+                    except Exception as exc:  # noqa: BLE001
+                        ctx.log("warning", f"Speaker extraction failed for {event_url}: {exc}")
+
+                    if not organizers and not speakers:
+                        ctx.log("info", f"[{i}/{len(findings)}] {event_title} → 0 organizers, 0 speakers")
                         await asyncio.sleep(event_delay)
                         continue
 
                     ctx.log(
                         "info",
-                        f"[{i}/{len(findings)}] {event_title} → {len(organizers)} organizers",
+                        f"[{i}/{len(findings)}] {event_title} → "
+                        f"{len(organizers)} organizers, {len(speakers)} speakers",
                     )
+
+                    # ── Speakers: insert directly, no profile fetch (TED doesn't host them) ──
+                    for sp in speakers:
+                        if contacts_created + contacts_updated >= max_contacts:
+                            break
+                        speaker_row = self._build_speaker_row(
+                            finding=finding,
+                            project_id=project_id,
+                            speaker=sp,
+                        )
+                        action = self._upsert_contact(sb, speaker_row, ctx)
+                        if action == "inserted":
+                            contacts_created += 1
+                        elif action == "updated":
+                            contacts_updated += 1
+                        elif action == "skipped":
+                            errors += 1
 
                     for org in organizers:
                         if contacts_created + contacts_updated >= max_contacts:
@@ -420,6 +445,89 @@ class ClientEnrichmentAgent(BaseAgent):
         return cleaned
 
     @staticmethod
+    async def _extract_speakers_from_event(page, event_url: str) -> List[dict]:
+        """From a TED /tedx/events/{id} page, pull every speaker card.
+
+        Speakers section structure (as of 2026-04):
+          <h3>Speakers</h3>
+          <h4>Name</h4>
+          <h5>Job title / role</h5>
+          <p>Bio paragraph(s)</p>
+          ... (repeat) ...
+          <h3>Organizing team</h3>   ← stop here
+        """
+        # If we just navigated to this URL for organizers, page is already loaded.
+        if page.url != event_url:
+            await page.goto(event_url, wait_until="domcontentloaded", timeout=45_000)
+            await page.wait_for_timeout(400)
+
+        speakers = await page.evaluate(
+            """
+            () => {
+              const out = [];
+              const headings = Array.from(document.querySelectorAll('h2, h3'));
+              const speakersH = headings.find(h =>
+                /^speakers$/i.test((h.innerText || '').trim())
+              );
+              if (!speakersH) return out;
+
+              // Walk forward through siblings (and into containers) until we
+              // hit the next h2/h3 (e.g. "Organizing team", "Sponsors").
+              // Speakers may be inside the same parent as the heading or in
+              // following sibling containers.
+              const stopRe = /^(organizing team|sponsors|partners|location)/i;
+
+              // Collect all h4 nodes that come AFTER the speakers heading and
+              // BEFORE the next stop heading, in document order.
+              const all = Array.from(document.querySelectorAll('h2, h3, h4, h5, p'));
+              const startIdx = all.indexOf(speakersH);
+              if (startIdx < 0) return out;
+
+              const slice = [];
+              for (let i = startIdx + 1; i < all.length; i++) {
+                const el = all[i];
+                const tag = el.tagName.toLowerCase();
+                const txt = (el.innerText || '').trim();
+                if ((tag === 'h2' || tag === 'h3') && stopRe.test(txt)) break;
+                slice.push(el);
+              }
+
+              // Group: each h4 starts a new speaker; collect following h5 + p
+              // until the next h4.
+              let current = null;
+              for (const el of slice) {
+                const tag = el.tagName.toLowerCase();
+                const txt = (el.innerText || '').replace(/\\s+/g, ' ').trim();
+                if (!txt) continue;
+                if (tag === 'h4') {
+                  if (current) out.push(current);
+                  current = { name: txt, role: '', bio: '' };
+                } else if (current && tag === 'h5' && !current.role) {
+                  current.role = txt;
+                } else if (current && tag === 'p') {
+                  current.bio = (current.bio ? current.bio + ' ' : '') + txt;
+                }
+              }
+              if (current) out.push(current);
+
+              return out.filter(s => s.name && s.name.length <= 120);
+            }
+            """
+        )
+
+        cleaned = []
+        for s in speakers or []:
+            name = clean_text(s.get("name"))
+            if not name:
+                continue
+            cleaned.append({
+                "name": name,
+                "role": clean_text(s.get("role")) or "Speaker",
+                "bio": clean_text(s.get("bio")) or "",
+            })
+        return cleaned
+
+    @staticmethod
     async def _extract_profile(page, profile_url: str) -> dict:
         """From a TED /profiles/{id}/about page, pull job + socials + bio."""
         await page.goto(profile_url, wait_until="domcontentloaded", timeout=45_000)
@@ -592,6 +700,46 @@ class ClientEnrichmentAgent(BaseAgent):
             "social_url": (social_url or "")[:500] or None,
             "source": "ted_profile",
             "confidence": 0.9,
+            "outreach_status": "not_contacted",
+            "notes": " | ".join(notes_parts)[:2000],
+        }
+
+    # Best-effort org extraction from a speaker's bio first sentence.
+    # Hits things like "is the CEO of Foo", "works at Bar", "with Baz".
+    _ORG_FROM_BIO_RE = re.compile(
+        r"\b(?:at|with|of|for)\s+(?:the\s+)?([A-Z][\w&.\-']+(?:\s+[A-Z][\w&.\-']+){0,5})"
+    )
+
+    @classmethod
+    def _build_speaker_row(
+        cls,
+        *,
+        finding: dict,
+        project_id: Optional[str],
+        speaker: dict,
+    ) -> dict:
+        event_title = clean_text(finding.get("title")) or "(unknown event)"
+        bio = speaker.get("bio") or ""
+        # Try to pull a likely org from the first sentence of the bio.
+        first_sentence = re.split(r"(?<=[.!?])\s+", bio, maxsplit=1)[0] if bio else ""
+        org_match = cls._ORG_FROM_BIO_RE.search(first_sentence)
+        organization = org_match.group(1).strip() if org_match else None
+
+        notes_parts = [f"TEDx event: {event_title}", "Role: TEDx speaker"]
+        if bio:
+            notes_parts.append(f"Bio: {bio[:600]}")
+
+        return {
+            "finding_id": finding["id"],
+            "project_id": project_id,
+            "name": speaker["name"][:200],
+            "organization": (organization or "")[:200] or None,
+            "role_title": (speaker.get("role") or "Speaker")[:200],
+            "email": None,
+            "website": None,
+            "social_url": None,
+            "source": "tedx_speaker",
+            "confidence": 0.85,
             "outreach_status": "not_contacted",
             "notes": " | ".join(notes_parts)[:2000],
         }
