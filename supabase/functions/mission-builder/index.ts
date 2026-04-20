@@ -80,6 +80,14 @@ tedx_scrape:
 hotel_lead_research / nvrland_research / client_enrichment:
   { "location": "...", "keywords": "...", "limit": 100, "notes": "..." }
 
+contact_web_enrich:
+  { "max_lookups": 50, "force_reenrich": false }
+  Use this BEFORE email_lookup whenever contacts came from a scraper
+  that only captures event/social URLs. Default max_lookups to ~50.
+
+email_lookup:
+  { "max_lookups": 50, "force_reenrich": false }
+
 retry_failed_records / refresh_source_scan:
   { "projectId": "<uuid>", "limit": 100 }
 
