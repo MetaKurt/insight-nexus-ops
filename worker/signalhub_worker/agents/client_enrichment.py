@@ -60,7 +60,7 @@ def clean_text(s: Optional[str]) -> Optional[str]:
 class ClientEnrichmentAgent(BaseAgent):
     job_type = "client_enrichment"
 
-    AGENT_VERSION = "2026-04-20.v6-speakers"
+    AGENT_VERSION = "2026-04-20.v7-speaker-photos"
     EVENT_RETRY_ATTEMPTS = 2
 
     DEFAULT_MAX_FINDINGS = 200
@@ -537,9 +537,9 @@ class ClientEnrichmentAgent(BaseAgent):
               // following sibling containers.
               const stopRe = /^(organizing team|sponsors|partners|location)/i;
 
-              // Collect all h4 nodes that come AFTER the speakers heading and
-              // BEFORE the next stop heading, in document order.
-              const all = Array.from(document.querySelectorAll('h2, h3, h4, h5, p'));
+              // Collect h4/h5/p AND img nodes after the speakers heading,
+              // stopping at the next h2/h3 stop heading.
+              const all = Array.from(document.querySelectorAll('h2, h3, h4, h5, p, img'));
               const startIdx = all.indexOf(speakersH);
               if (startIdx < 0) return out;
 
@@ -553,15 +553,26 @@ class ClientEnrichmentAgent(BaseAgent):
               }
 
               // Group: each h4 starts a new speaker; collect following h5 + p
-              // until the next h4.
+              // until the next h4. Photos: grab the most recent <img> seen
+              // before the h4 (TED renders photo, then name, then role).
               let current = null;
+              let pendingPhoto = '';
               for (const el of slice) {
                 const tag = el.tagName.toLowerCase();
+                if (tag === 'img') {
+                  const src = el.getAttribute('src') || el.getAttribute('data-src') || '';
+                  // Skip tiny icons / sponsor logos by requiring a TED image host
+                  if (src && /pi\.tedcdn\.com|tedcdn|ted\.com\/.*\/(speaker|profile|user)/i.test(src)) {
+                    pendingPhoto = src;
+                  }
+                  continue;
+                }
                 const txt = (el.innerText || '').replace(/\\s+/g, ' ').trim();
                 if (!txt) continue;
                 if (tag === 'h4') {
                   if (current) out.push(current);
-                  current = { name: txt, role: '', bio: '' };
+                  current = { name: txt, role: '', bio: '', photo_url: pendingPhoto };
+                  pendingPhoto = '';
                 } else if (current && tag === 'h5' && !current.role) {
                   current.role = txt;
                 } else if (current && tag === 'p') {
@@ -584,6 +595,7 @@ class ClientEnrichmentAgent(BaseAgent):
                 "name": name,
                 "role": clean_text(s.get("role")) or "Speaker",
                 "bio": clean_text(s.get("bio")) or "",
+                "photo_url": (s.get("photo_url") or "").strip() or None,
             })
         return cleaned
 
@@ -762,6 +774,8 @@ class ClientEnrichmentAgent(BaseAgent):
             "confidence": 0.9,
             "outreach_status": "not_contacted",
             "notes": " | ".join(notes_parts)[:2000],
+            "bio": (profile.get("bio") or None) and profile["bio"][:4000],
+            "photo_url": (organizer.get("photo_url") or "").strip() or None,
         }
 
     # Best-effort org extraction from a speaker's bio first sentence.
@@ -786,8 +800,6 @@ class ClientEnrichmentAgent(BaseAgent):
         organization = org_match.group(1).strip() if org_match else None
 
         notes_parts = [f"TEDx event: {event_title}", "Role: TEDx speaker"]
-        if bio:
-            notes_parts.append(f"Bio: {bio[:600]}")
 
         return {
             "finding_id": finding["id"],
@@ -802,6 +814,8 @@ class ClientEnrichmentAgent(BaseAgent):
             "confidence": 0.85,
             "outreach_status": "not_contacted",
             "notes": " | ".join(notes_parts)[:2000],
+            "bio": (bio or None) and bio[:4000],
+            "photo_url": speaker.get("photo_url"),
         }
 
     @staticmethod
