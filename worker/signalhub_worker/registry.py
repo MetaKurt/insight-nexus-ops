@@ -10,6 +10,7 @@ from typing import Dict, Type
 
 from .agents.base import BaseAgent
 from .agents.client_enrichment import ClientEnrichmentAgent
+from .agents.contact_web_enrich import ContactWebEnrichAgent
 from .agents.email_lookup import EmailLookupAgent
 from .agents.hello import HelloAgent
 from .agents.tedx_scrape import TedxScrapeAgent
@@ -19,4 +20,5 @@ REGISTRY: Dict[str, Type[BaseAgent]] = {
     TedxScrapeAgent.job_type: TedxScrapeAgent,
     ClientEnrichmentAgent.job_type: ClientEnrichmentAgent,
     EmailLookupAgent.job_type: EmailLookupAgent,
+    ContactWebEnrichAgent.job_type: ContactWebEnrichAgent,
 }
