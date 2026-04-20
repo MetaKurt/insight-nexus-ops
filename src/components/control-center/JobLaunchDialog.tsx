@@ -95,13 +95,15 @@ export function JobLaunchDialog({ open, onOpenChange, defaultJobType }: JobLaunc
     [workspaceId],
   );
 
+  const isCrossWorkspaceJob = jobType === "email_lookup" || jobType === "contact_web_enrich";
+
   const targetWorkspaceId = useMemo(() => {
     if (workspaceId !== "all") return workspaceId;
     if (projectId) return allProjects.find((p) => p.id === projectId)?.workspaceId;
-    // email_lookup can run cross-workspace (against all contacts) — fall back to first workspace
-    if (jobType === "email_lookup") return workspaces[0]?.id;
+    // These jobs operate across all contacts when no project is set.
+    if (isCrossWorkspaceJob) return workspaces[0]?.id;
     return undefined;
-  }, [workspaceId, projectId, jobType, workspaces]);
+  }, [workspaceId, projectId, isCrossWorkspaceJob, workspaces]);
 
   const { mutate, isPending } = useMutation({
     mutationFn: async () => {
@@ -126,7 +128,7 @@ export function JobLaunchDialog({ open, onOpenChange, defaultJobType }: JobLaunc
           available_only: availableOnly,
           max_pages: maxPages ? Number(maxPages) : undefined,
         }),
-        ...(jobType === "email_lookup" && {
+        ...((jobType === "email_lookup" || jobType === "contact_web_enrich") && {
           max_lookups: maxLookups ? Number(maxLookups) : undefined,
           force_reenrich: forceReenrich || undefined,
         }),
@@ -202,10 +204,10 @@ export function JobLaunchDialog({ open, onOpenChange, defaultJobType }: JobLaunc
 
           {showField("projectId") && (
             <div className="space-y-1.5">
-              <Label>Project {jobType === "email_lookup" && <span className="text-muted-foreground font-normal">(optional — leave blank to enrich all contacts)</span>}</Label>
+              <Label>Project {(jobType === "email_lookup" || jobType === "contact_web_enrich") && <span className="text-muted-foreground font-normal">(optional — leave blank to enrich all contacts)</span>}</Label>
               <Select value={projectId ?? ""} onValueChange={(v) => setProjectId(v || undefined)}>
                 <SelectTrigger>
-                  <SelectValue placeholder={jobType === "email_lookup" ? "All contacts (no project filter)" : workspaceId === "all" ? "Select project (sets workspace)" : "Select project (optional)"} />
+                  <SelectValue placeholder={(jobType === "email_lookup" || jobType === "contact_web_enrich") ? "All contacts (no project filter)" : workspaceId === "all" ? "Select project (sets workspace)" : "Select project (optional)"} />
                 </SelectTrigger>
                 <SelectContent>
                   {scopedProjects.map((p) => (
@@ -297,7 +299,7 @@ export function JobLaunchDialog({ open, onOpenChange, defaultJobType }: JobLaunc
             )}
             {showField("maxLookups") && (
               <div className="space-y-1.5">
-                <Label>Max Hunter lookups</Label>
+                <Label>{jobType === "contact_web_enrich" ? "Max Firecrawl searches" : "Max Hunter lookups"}</Label>
                 <Input
                   type="number"
                   min={1}
@@ -306,7 +308,9 @@ export function JobLaunchDialog({ open, onOpenChange, defaultJobType }: JobLaunc
                   onChange={(e) => setMaxLookups(e.target.value)}
                 />
                 <p className="text-[11px] text-muted-foreground">
-                  Hard cap on Hunter API calls this run. Free tier = 25/month.
+                  {jobType === "contact_web_enrich"
+                    ? "Hard cap on Firecrawl Search calls this run. ~$0.01 each."
+                    : "Hard cap on Hunter API calls this run. Free tier = 25/month."}
                 </p>
               </div>
             )}
@@ -316,7 +320,9 @@ export function JobLaunchDialog({ open, onOpenChange, defaultJobType }: JobLaunc
                 <div className="flex h-10 items-center gap-2 rounded-md border border-input bg-background px-3">
                   <Switch checked={forceReenrich} onCheckedChange={setForceReenrich} />
                   <span className="text-xs text-muted-foreground">
-                    {forceReenrich ? "Re-query contacts enriched in last 90 days" : "Skip recently enriched contacts"}
+                    {jobType === "contact_web_enrich"
+                      ? (forceReenrich ? "Re-search even contacts that already have LinkedIn/website" : "Skip contacts with real site + LinkedIn")
+                      : (forceReenrich ? "Re-query contacts enriched in last 90 days" : "Skip recently enriched contacts")}
                   </span>
                 </div>
               </div>

@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   Heart,
   Mail,
+  Globe,
 } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,6 +27,7 @@ const iconMap: Record<JobType, typeof Sparkles> = {
   hotel_lead_research: Building2,
   nvrland_research: Gem,
   client_enrichment: UserPlus2,
+  contact_web_enrich: Globe,
   email_lookup: Mail,
   retry_failed_records: RefreshCw,
   refresh_source_scan: RadioTower,
