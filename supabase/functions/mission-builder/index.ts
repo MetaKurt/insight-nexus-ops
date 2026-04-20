@@ -24,6 +24,8 @@ const JOB_TYPES = [
   "hotel_lead_research",
   "nvrland_research",
   "client_enrichment",
+  "contact_web_enrich",
+  "email_lookup",
   "retry_failed_records",
   "refresh_source_scan",
   "export_data",
@@ -43,6 +45,8 @@ AVAILABLE JOB TYPES (you MUST pick from this list):
 - hotel_lead_research — find hotel leads matching criteria
 - nvrland_research — broad research workflow for NvrLand
 - client_enrichment — enrich existing records with extra data
+- contact_web_enrich — Firecrawl-powered web search to find each contact's real employer, company website domain, and LinkedIn URL. ALWAYS use this BEFORE email_lookup if contacts came from a scraper that only captured social URLs (TEDx, event sites, etc.) — Hunter.io needs real company domains to find emails.
+- email_lookup — Hunter.io email finder. Requires contacts to have a real company domain in contacts.website (use contact_web_enrich first if not).
 - retry_failed_records — re-run records that previously errored
 - refresh_source_scan — rescan a source for new items
 - export_data — export records to CSV/JSON
@@ -75,6 +79,14 @@ tedx_scrape:
 
 hotel_lead_research / nvrland_research / client_enrichment:
   { "location": "...", "keywords": "...", "limit": 100, "notes": "..." }
+
+contact_web_enrich:
+  { "max_lookups": 50, "force_reenrich": false }
+  Use this BEFORE email_lookup whenever contacts came from a scraper
+  that only captures event/social URLs. Default max_lookups to ~50.
+
+email_lookup:
+  { "max_lookups": 50, "force_reenrich": false }
 
 retry_failed_records / refresh_source_scan:
   { "projectId": "<uuid>", "limit": 100 }
