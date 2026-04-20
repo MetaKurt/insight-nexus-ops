@@ -23,6 +23,7 @@ import { Separator } from "@/components/ui/separator";
 import { StatusBadge } from "@/components/StatusBadge";
 import { LogStream } from "@/components/control-center/LogStream";
 import { JobLaunchDialog } from "@/components/control-center/JobLaunchDialog";
+import { JournalTipCallout } from "@/components/control-center/JournalTipCallout";
 
 import { api } from "@/lib/api";
 import { jobTypeCatalog } from "@/mocks/jobs";
@@ -260,11 +261,25 @@ export default function JobDetail() {
       </div>
 
       <Card className="border-border/60 bg-surface-elevated">
-        <CardContent className="p-5">
-          <div className="mb-3 flex items-center justify-between">
+        <CardContent className="p-5 space-y-3">
+          <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold">Log stream</h3>
-            <Badge variant="outline" className="text-[10px]">{logs.length} entries</Badge>
+            <div className="flex items-center gap-2">
+              {(job.status === "queued" || job.status === "running") ? (
+                <Badge variant="outline" className="border-info/40 bg-info/10 text-info text-[10px]">
+                  <Server className="mr-1 h-3 w-3" />
+                  {job.workerName ? `Live on ${job.workerName}` : "Awaiting worker"}
+                </Badge>
+              ) : job.workerName ? (
+                <Badge variant="outline" className="text-[10px]">
+                  <Server className="mr-1 h-3 w-3" />
+                  Ran on {job.workerName}
+                </Badge>
+              ) : null}
+              <Badge variant="outline" className="text-[10px]">{logs.length} entries</Badge>
+            </div>
           </div>
+          <JournalTipCallout />
           <LogStream logs={logs} emptyText="No logs for this job yet." />
         </CardContent>
       </Card>

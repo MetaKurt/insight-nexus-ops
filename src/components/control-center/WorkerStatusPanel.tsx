@@ -7,10 +7,11 @@ import { EmptyState } from "@/components/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useNow } from "@/hooks/useNow";
 
-const fmtRelative = (iso: string) => {
-  const diff = Date.now() - new Date(iso).getTime();
-  const s = Math.round(diff / 1000);
+const fmtRelativeFrom = (iso: string, now: number) => {
+  const diff = now - new Date(iso).getTime();
+  const s = Math.max(0, Math.round(diff / 1000));
   if (s < 60) return `${s}s ago`;
   const m = Math.round(s / 60);
   if (m < 60) return `${m}m ago`;
@@ -18,14 +19,15 @@ const fmtRelative = (iso: string) => {
   return `${h}h ago`;
 };
 
-const heartbeatTone = (iso: string) => {
-  const diff = Date.now() - new Date(iso).getTime();
+const heartbeatToneFrom = (iso: string, now: number) => {
+  const diff = now - new Date(iso).getTime();
   if (diff < 60_000) return "bg-success";
   if (diff < 5 * 60_000) return "bg-warning";
   return "bg-destructive";
 };
 
 export function WorkerStatusPanel() {
+  const now = useNow(1000);
   const { data: workers = [], isLoading } = useQuery({
     queryKey: ["workers"],
     queryFn: () => api.workers.list(),
@@ -66,8 +68,8 @@ export function WorkerStatusPanel() {
             </div>
 
             <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-              <span className={cn("h-2 w-2 rounded-full", heartbeatTone(w.lastHeartbeatAt))} />
-              Heartbeat {fmtRelative(w.lastHeartbeatAt)}
+              <span className={cn("h-2 w-2 rounded-full animate-pulse", heartbeatToneFrom(w.lastHeartbeatAt, now))} />
+              Heartbeat {fmtRelativeFrom(w.lastHeartbeatAt, now)}
               {w.region && <span className="ml-auto rounded bg-muted px-1.5 py-0.5 text-[10px]">{w.region}</span>}
             </div>
 
