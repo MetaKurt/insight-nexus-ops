@@ -44,7 +44,7 @@ AVAILABLE JOB TYPES (you MUST pick from this list):
 - tedx_scrape — scrape TEDx event listings (filterable by location, year, status)
 - hotel_lead_research — find hotel leads matching criteria
 - nvrland_research — broad research workflow for NvrLand
-- client_enrichment — enrich existing records with extra data
+- client_enrichment — visits each TEDx event page and extracts BOTH the organizing team AND the speakers as contacts (with bios + role titles). Use this as Stage 2 after tedx_scrape.
 - contact_web_enrich — Firecrawl-powered web search to find each contact's real employer, company website domain, and LinkedIn URL. ALWAYS use this BEFORE email_lookup if contacts came from a scraper that only captured social URLs (TEDx, event sites, etc.) — Hunter.io needs real company domains to find emails.
 - email_lookup — Hunter.io email finder. Requires contacts to have a real company domain in contacts.website (use contact_web_enrich first if not).
 - retry_failed_records — re-run records that previously errored

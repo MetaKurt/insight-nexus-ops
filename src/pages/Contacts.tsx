@@ -141,6 +141,16 @@ export default function Contacts() {
                           </Tooltip>
                         </TooltipProvider>
                       )}
+                      {c.source === "tedx_speaker" && (
+                        <span className="inline-flex h-5 items-center rounded-full border border-info/30 bg-info/10 px-1.5 text-[10px] font-medium text-info">
+                          Speaker
+                        </span>
+                      )}
+                      {(c.source === "ted_profile" || c.source === "tedx_organizer") && (
+                        <span className="inline-flex h-5 items-center rounded-full border border-warning/30 bg-warning/10 px-1.5 text-[10px] font-medium text-warning">
+                          Organizer
+                        </span>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell className="text-xs">
