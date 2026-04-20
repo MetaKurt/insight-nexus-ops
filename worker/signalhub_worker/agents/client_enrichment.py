@@ -774,6 +774,8 @@ class ClientEnrichmentAgent(BaseAgent):
             "confidence": 0.9,
             "outreach_status": "not_contacted",
             "notes": " | ".join(notes_parts)[:2000],
+            "bio": (profile.get("bio") or None) and profile["bio"][:4000],
+            "photo_url": (organizer.get("photo_url") or "").strip() or None,
         }
 
     # Best-effort org extraction from a speaker's bio first sentence.
