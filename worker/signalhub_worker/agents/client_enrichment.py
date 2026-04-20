@@ -704,8 +704,46 @@ class ClientEnrichmentAgent(BaseAgent):
             "notes": " | ".join(notes_parts)[:2000],
         }
 
-    @staticmethod
-    def _upsert_contact(sb, row: dict, ctx=None) -> str:
+    # Best-effort org extraction from a speaker's bio first sentence.
+    # Hits things like "is the CEO of Foo", "works at Bar", "with Baz".
+    _ORG_FROM_BIO_RE = re.compile(
+        r"\b(?:at|with|of|for)\s+(?:the\s+)?([A-Z][\w&.\-']+(?:\s+[A-Z][\w&.\-']+){0,5})"
+    )
+
+    @classmethod
+    def _build_speaker_row(
+        cls,
+        *,
+        finding: dict,
+        project_id: Optional[str],
+        speaker: dict,
+    ) -> dict:
+        event_title = clean_text(finding.get("title")) or "(unknown event)"
+        bio = speaker.get("bio") or ""
+        # Try to pull a likely org from the first sentence of the bio.
+        first_sentence = re.split(r"(?<=[.!?])\s+", bio, maxsplit=1)[0] if bio else ""
+        org_match = cls._ORG_FROM_BIO_RE.search(first_sentence)
+        organization = org_match.group(1).strip() if org_match else None
+
+        notes_parts = [f"TEDx event: {event_title}", "Role: TEDx speaker"]
+        if bio:
+            notes_parts.append(f"Bio: {bio[:600]}")
+
+        return {
+            "finding_id": finding["id"],
+            "project_id": project_id,
+            "name": speaker["name"][:200],
+            "organization": (organization or "")[:200] or None,
+            "role_title": (speaker.get("role") or "Speaker")[:200],
+            "email": None,
+            "website": None,
+            "social_url": None,
+            "source": "tedx_speaker",
+            "confidence": 0.85,
+            "outreach_status": "not_contacted",
+            "notes": " | ".join(notes_parts)[:2000],
+        }
+
         """Insert if (finding_id, name) doesn't exist; else update.
 
         Returns 'inserted', 'updated', or 'skipped'. Logs errors via ctx
