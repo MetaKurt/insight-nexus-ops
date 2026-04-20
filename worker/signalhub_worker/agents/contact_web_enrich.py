@@ -187,6 +187,16 @@ class ContactWebEnrichAgent(BaseAgent):
                     await asyncio.sleep(sleep_between)
                     continue
 
+                # Debug: show what Firecrawl returned for the first 2 contacts
+                if i <= 2:
+                    ctx.log("debug", f"[{i}] query: {query}")
+                    ctx.log("debug", f"[{i}] got {len(results)} results")
+                    for j, hit in enumerate(results[:3], start=1):
+                        ctx.log(
+                            "debug",
+                            f"[{i}.{j}] url={hit.get('url')!r} title={(hit.get('title') or '')[:80]!r}",
+                        )
+
                 update = self._extract_signals(results, name)
 
                 if not update:
