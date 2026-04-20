@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { Users, Mail, Phone, Linkedin, Twitter, Sparkles } from "lucide-react";
+import { Users, Mail, Phone, Linkedin, Twitter, Sparkles, Globe } from "lucide-react";
 
 import { PageHeader } from "@/components/PageHeader";
 import { FilterBar } from "@/components/FilterBar";
@@ -149,20 +149,37 @@ export default function Contacts() {
                       </div>
                     )}
                     {c.phone && <div className="flex items-center gap-1 text-muted-foreground"><Phone className="h-3 w-3" /> {c.phone}</div>}
-                    {(c.social?.linkedin || c.social?.twitter) && (
-                      <div className="flex items-center gap-2 pt-0.5">
-                        {c.social?.linkedin && (
-                          <a href={c.social.linkedin} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-primary" aria-label="LinkedIn">
-                            <Linkedin className="h-3 w-3" />
-                          </a>
-                        )}
-                        {c.social?.twitter && (
-                          <a href={c.social.twitter} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-primary" aria-label="Twitter">
-                            <Twitter className="h-3 w-3" />
-                          </a>
-                        )}
-                      </div>
-                    )}
+                    {(() => {
+                      const realWebsite = isRealCompanyWebsite(c.website);
+                      const hasAny = c.social?.linkedin || c.social?.twitter || realWebsite;
+                      if (!hasAny) return null;
+                      return (
+                        <div className="flex items-center gap-2 pt-0.5">
+                          {c.social?.linkedin && (
+                            <a href={c.social.linkedin} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-primary" aria-label="LinkedIn">
+                              <Linkedin className="h-3 w-3" />
+                            </a>
+                          )}
+                          {c.social?.twitter && (
+                            <a href={c.social.twitter} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-primary" aria-label="Twitter">
+                              <Twitter className="h-3 w-3" />
+                            </a>
+                          )}
+                          {realWebsite && (
+                            <a
+                              href={normalizeUrl(c.website!)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-muted-foreground hover:text-primary"
+                              aria-label={`Website: ${c.website}`}
+                              title={c.website}
+                            >
+                              <Globe className="h-3 w-3" />
+                            </a>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">{c.source}</TableCell>
                   <TableCell><ConfidenceMeter value={c.confidence} /></TableCell>
