@@ -45,6 +45,14 @@ export const jobTypeCatalog: JobTypeDefinition[] = [
     fields: ["projectId", "limit", "notes"],
   },
   {
+    id: "contact_web_enrich",
+    label: "Enrich Contacts (Web Search)",
+    description: "For contacts missing a real company website or LinkedIn URL, runs Firecrawl Search to find their employer, company domain, and LinkedIn profile. Run this BEFORE Hunter — it gives Hunter the real domains it needs.",
+    category: "enrichment",
+    defaultPriority: "normal",
+    fields: ["projectId", "maxLookups", "forceReenrich", "notes"],
+  },
+  {
     id: "email_lookup",
     label: "Find Emails (Hunter.io)",
     description: "For contacts missing an email, query Hunter.io's Email Finder. Captures email, LinkedIn, Twitter, verification status, and source URLs. Skips contacts enriched in the last 90 days unless force_reenrich is set.",
