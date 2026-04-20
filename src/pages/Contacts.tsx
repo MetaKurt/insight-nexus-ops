@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { Users, Mail, Phone, Linkedin, Twitter } from "lucide-react";
+import { Users, Mail, Phone, Linkedin, Twitter, Sparkles } from "lucide-react";
 
 import { PageHeader } from "@/components/PageHeader";
 import { FilterBar } from "@/components/FilterBar";
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -86,12 +87,37 @@ export default function Contacts() {
               {filtered.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell>
-                    <Link to={`/contacts/${c.id}`} className="flex items-center gap-2 font-medium hover:text-primary">
-                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-[10px] font-semibold text-primary">
-                        {c.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
-                      </span>
-                      {c.name}
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      <Link to={`/contacts/${c.id}`} className="flex items-center gap-2 font-medium hover:text-primary">
+                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-[10px] font-semibold text-primary">
+                          {c.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
+                        </span>
+                        {c.name}
+                      </Link>
+                      {c.enrichmentProvider && (
+                        <TooltipProvider delayDuration={150}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span
+                                className="inline-flex h-5 items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-1.5 text-[10px] font-medium text-primary"
+                                aria-label={`Enriched via ${c.enrichmentProvider}`}
+                              >
+                                <Sparkles className="h-2.5 w-2.5" />
+                                Enriched
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-xs">
+                              <div className="font-medium capitalize">{c.enrichmentProvider}</div>
+                              {c.enrichedAt && (
+                                <div className="text-muted-foreground">
+                                  {new Date(c.enrichedAt).toLocaleString()}
+                                </div>
+                              )}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="text-xs">
                     {c.event ? (
