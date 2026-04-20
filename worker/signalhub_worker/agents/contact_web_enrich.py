@@ -187,6 +187,16 @@ class ContactWebEnrichAgent(BaseAgent):
                     await asyncio.sleep(sleep_between)
                     continue
 
+                # Debug: show what Firecrawl returned for the first 2 contacts
+                if i <= 2:
+                    ctx.log("debug", f"[{i}] query: {query}")
+                    ctx.log("debug", f"[{i}] got {len(results)} results")
+                    for j, hit in enumerate(results[:3], start=1):
+                        ctx.log(
+                            "debug",
+                            f"[{i}.{j}] url={hit.get('url')!r} title={(hit.get('title') or '')[:80]!r}",
+                        )
+
                 update = self._extract_signals(results, name)
 
                 if not update:
@@ -315,16 +325,17 @@ class ContactWebEnrichAgent(BaseAgent):
                 continue
             domain = _domain_of(url)
 
-            # 1) LinkedIn — prefer /in/ profile URLs that include part of the name.
+            # 1) LinkedIn — prefer /in/ profile URLs.
             if not linkedin_url and domain and "linkedin.com" in domain and "/in/" in url:
                 slug_match = re.search(r"/in/([^/?#]+)", url)
                 if slug_match:
                     slug = slug_match.group(1).lower()
-                    # Loose match: require at least one name token to overlap.
                     name_tokens = [t for t in re.split(r"[-_]", name_slug) if len(t) > 2]
-                    if any(tok in slug for tok in name_tokens):
+                    # Accept if any name token overlaps slug, OR if no good tokens
+                    # to compare (very short names) — better to take the top hit
+                    # than miss a real profile.
+                    if not name_tokens or any(tok in slug for tok in name_tokens):
                         linkedin_url = url.split("?")[0]
-                        # Try to pull "at Acme Corp" out of the LinkedIn title.
                         m = re.search(r"\bat\s+([A-Z][\w&. ]{2,60})", title)
                         if m and not company_name:
                             company_name = m.group(1).strip().rstrip(".|-")
