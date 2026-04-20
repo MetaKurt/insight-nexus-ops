@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       contacts: {
         Row: {
+          bio: string | null
           confidence: number | null
           created_at: string
           email: string | null
@@ -32,6 +33,7 @@ export type Database = {
           organization: string | null
           outreach_status: string | null
           phone: string | null
+          photo_url: string | null
           project_id: string | null
           role_title: string | null
           social_url: string | null
@@ -41,6 +43,7 @@ export type Database = {
           website: string | null
         }
         Insert: {
+          bio?: string | null
           confidence?: number | null
           created_at?: string
           email?: string | null
@@ -57,6 +60,7 @@ export type Database = {
           organization?: string | null
           outreach_status?: string | null
           phone?: string | null
+          photo_url?: string | null
           project_id?: string | null
           role_title?: string | null
           social_url?: string | null
@@ -66,6 +70,7 @@ export type Database = {
           website?: string | null
         }
         Update: {
+          bio?: string | null
           confidence?: number | null
           created_at?: string
           email?: string | null
@@ -82,6 +87,7 @@ export type Database = {
           organization?: string | null
           outreach_status?: string | null
           phone?: string | null
+          photo_url?: string | null
           project_id?: string | null
           role_title?: string | null
           social_url?: string | null
