@@ -744,6 +744,8 @@ class ClientEnrichmentAgent(BaseAgent):
             "notes": " | ".join(notes_parts)[:2000],
         }
 
+    @staticmethod
+    def _upsert_contact(sb, row: dict, ctx=None) -> str:
         """Insert if (finding_id, name) doesn't exist; else update.
 
         Returns 'inserted', 'updated', or 'skipped'. Logs errors via ctx
