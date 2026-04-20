@@ -19,6 +19,7 @@ import { JobLaunchPanel } from "@/components/control-center/JobLaunchPanel";
 import { JobsTable } from "@/components/control-center/JobsTable";
 import { WorkerStatusPanel } from "@/components/control-center/WorkerStatusPanel";
 import { LogStream } from "@/components/control-center/LogStream";
+import { JournalTipCallout } from "@/components/control-center/JournalTipCallout";
 
 import { api } from "@/lib/api";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -145,11 +146,13 @@ export default function ControlCenter() {
           />
         </TabsContent>
 
-        <TabsContent value="workers">
+        <TabsContent value="workers" className="space-y-3">
+          <JournalTipCallout />
           <WorkerStatusPanel />
         </TabsContent>
 
-        <TabsContent value="logs">
+        <TabsContent value="logs" className="space-y-3">
+          <JournalTipCallout />
           <LogStream logs={logs} showJobLink emptyText="No logs across the fleet yet." />
         </TabsContent>
       </Tabs>
