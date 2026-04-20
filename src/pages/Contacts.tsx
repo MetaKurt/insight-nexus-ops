@@ -25,6 +25,30 @@ const emailFilters = [
   { value: "without", label: "Missing email" },
 ];
 
+// Domains that aren't real company websites — Hunter can't use them and the
+// globe icon would be misleading. Keep in sync with worker/agents/contact_web_enrich.py.
+const BLOCKED_WEBSITE_HOSTS = new Set([
+  "ted.com", "linkedin.com", "twitter.com", "x.com",
+  "facebook.com", "fb.com", "instagram.com",
+  "youtube.com", "youtu.be", "tiktok.com",
+  "eventbrite.com", "meetup.com", "wikipedia.org", "medium.com",
+]);
+
+function normalizeUrl(raw: string): string {
+  return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+}
+
+function isRealCompanyWebsite(raw?: string | null): boolean {
+  if (!raw) return false;
+  try {
+    const host = new URL(normalizeUrl(raw)).hostname.toLowerCase().replace(/^www\./, "");
+    if (!host.includes(".")) return false;
+    return !BLOCKED_WEBSITE_HOSTS.has(host);
+  } catch {
+    return false;
+  }
+}
+
 export default function Contacts() {
   const { workspaceId } = useWorkspace();
   const [search, setSearch] = useState("");
