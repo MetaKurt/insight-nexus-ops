@@ -73,11 +73,22 @@ US_STATE_CODES = set(US_STATES.values())
 
 EVENT_TYPE_PATTERN = re.compile(r"^(TEDx[A-Za-z]*)", re.IGNORECASE)
 YEAR_PATTERN = re.compile(r"\b(20\d{2})\b")
+UUID_PATTERN = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
 
 # Invisible characters TED inserts into event names for line-breaking.
 # Soft hyphen (U+00AD), zero-width space (U+200B), zero-width non-joiner (U+200C),
 # zero-width joiner (U+200D), word joiner (U+2060), BOM (U+FEFF).
 _INVISIBLE_CHARS_RE = re.compile(r"[\u00AD\u200B\u200C\u200D\u2060\uFEFF]")
+
+
+def uuid_or_none(value: Optional[str]) -> Optional[str]:
+    if not value:
+        return None
+    value = str(value)
+    return value if UUID_PATTERN.match(value) else None
 
 
 def clean_text(s: Optional[str]) -> Optional[str]:
@@ -600,7 +611,7 @@ class TedxScrapeAgent(BaseAgent):
             "source_type": "tedx_events",
             "status": "new",
             "data": record,
-            "project_id": payload.get("projectId") or None,
+            "project_id": uuid_or_none(payload.get("projectId")),
             "confidence": 0.95,
         }
 

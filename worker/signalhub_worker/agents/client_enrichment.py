@@ -47,6 +47,17 @@ from ..config import settings
 # everywhere ("­T­E­Dx­Boca­Raton" instead of "TEDxBocaRaton").
 _INVISIBLE_CHARS_RE = re.compile(r"[\u00AD\u200B\u200C\u200D\u2060\uFEFF]")
 _EMAIL_RE = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
+_UUID_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
+
+
+def uuid_or_none(value: Optional[str]) -> Optional[str]:
+    if not value:
+        return None
+    value = str(value)
+    return value if _UUID_RE.match(value) else None
 
 
 def clean_text(s: Optional[str]) -> Optional[str]:
@@ -85,7 +96,7 @@ class ClientEnrichmentAgent(BaseAgent):
         sb = ctx.supabase
 
         # ── Resolve payload knobs ──────────────────────────────────────
-        project_id: Optional[str] = payload.get("projectId") or payload.get("project_id") or None
+        project_id: Optional[str] = uuid_or_none(payload.get("projectId") or payload.get("project_id"))
         depends_on_stage_id: Optional[str] = payload.get("depends_on_stage_id") or None
         mission_id: Optional[str] = payload.get("mission_id") or None
 

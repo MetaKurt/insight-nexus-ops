@@ -100,18 +100,18 @@ export default function Dashboard() {
       <div>
         <h2 className="mb-3 text-sm font-medium uppercase tracking-wider text-muted-foreground">By vertical</h2>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
-          {(Object.keys(verticalMeta) as Vertical[]).map((v) => {
-            const meta = verticalMeta[v];
+          {workspaces.map((workspace) => {
+            const meta = verticalMeta[workspace.vertical];
             const Icon = meta.icon;
             return (
-              <Card key={v} className="relative overflow-hidden border-border/60 bg-surface-elevated">
+              <Card key={workspace.id} className="relative overflow-hidden border-border/60 bg-surface-elevated">
                 <div className={`pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-gradient-to-br ${meta.tint} to-transparent blur-2xl`} />
                 <CardContent className="relative p-5">
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Icon className="h-4 w-4" />
-                    <span className="text-xs uppercase tracking-wider">{meta.label}</span>
+                    <span className="text-xs uppercase tracking-wider">{workspace.name}</span>
                   </div>
-                  <p className="mt-3 text-2xl font-semibold tabular-nums">{verticalCounts[v]}</p>
+                  <p className="mt-3 text-2xl font-semibold tabular-nums">{verticalCounts[workspace.vertical]}</p>
                   <p className="mt-1 text-xs text-muted-foreground">records collected</p>
                 </CardContent>
               </Card>

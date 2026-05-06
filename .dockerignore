@@ -1,0 +1,10 @@
+.git
+.lovable
+node_modules
+dist
+.env
+worker/.env
+worker/.venv
+worker/signalhub_worker/__pycache__
+worker/signalhub_worker/**/__pycache__
+*.log

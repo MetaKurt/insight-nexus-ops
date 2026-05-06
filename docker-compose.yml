@@ -1,0 +1,25 @@
+services:
+  signalhub-frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
+        VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY}
+        VITE_SUPABASE_PROJECT_ID: ${VITE_SUPABASE_PROJECT_ID}
+    container_name: signalhub-frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:80"
+
+  signalhub-worker:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    container_name: signalhub-worker
+    restart: unless-stopped
+    env_file:
+      - ./worker/.env
+    shm_size: "1gb"
+    security_opt:
+      - seccomp=unconfined

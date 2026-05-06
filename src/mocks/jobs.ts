@@ -18,23 +18,7 @@ export const jobTypeCatalog: JobTypeDefinition[] = [
     description: "Scan ted.com/tedx for upcoming events. Filters (country, year, spaces available) are pushed into the URL so the scrape stays fast.",
     category: "research",
     defaultPriority: "normal",
-    fields: ["projectId", "country", "years", "availableOnly", "maxPages", "limit", "keywords", "notes"],
-  },
-  {
-    id: "hotel_lead_research",
-    label: "Run Hotel Lead Research",
-    description: "Discover GMs, marketing leads, and partnership contacts at target hotel properties.",
-    category: "research",
-    defaultPriority: "normal",
-    fields: ["projectId", "sourceType", "location", "keywords", "limit", "notes"],
-  },
-  {
-    id: "nvrland_research",
-    label: "Run NVRLand Research",
-    description: "Refresh collector wallets, drop signals, and community intelligence for NVRLand.",
-    category: "research",
-    defaultPriority: "high",
-    fields: ["projectId", "sourceType", "limit", "notes"],
+    fields: ["country", "years", "availableOnly", "maxPages", "limit", "keywords", "notes"],
   },
   {
     id: "client_enrichment",
@@ -42,7 +26,7 @@ export const jobTypeCatalog: JobTypeDefinition[] = [
     description: "Enrich existing client contacts with verified emails, roles, and social profiles.",
     category: "enrichment",
     defaultPriority: "normal",
-    fields: ["projectId", "limit", "notes"],
+    fields: ["limit", "notes"],
   },
   {
     id: "contact_web_enrich",
@@ -50,7 +34,7 @@ export const jobTypeCatalog: JobTypeDefinition[] = [
     description: "For contacts missing a real company website or LinkedIn URL, runs Firecrawl Search to find their employer, company domain, and LinkedIn profile. Run this BEFORE Hunter — it gives Hunter the real domains it needs.",
     category: "enrichment",
     defaultPriority: "normal",
-    fields: ["projectId", "maxLookups", "forceReenrich", "notes"],
+    fields: ["maxLookups", "forceReenrich", "notes"],
   },
   {
     id: "email_lookup",
@@ -58,7 +42,7 @@ export const jobTypeCatalog: JobTypeDefinition[] = [
     description: "For contacts missing an email, query Hunter.io's Email Finder. Captures email, LinkedIn, Twitter, verification status, and source URLs. Skips contacts enriched in the last 90 days unless force_reenrich is set.",
     category: "enrichment",
     defaultPriority: "normal",
-    fields: ["projectId", "maxLookups", "forceReenrich", "notes"],
+    fields: ["maxLookups", "forceReenrich", "notes"],
   },
   {
     id: "retry_failed_records",
@@ -66,7 +50,7 @@ export const jobTypeCatalog: JobTypeDefinition[] = [
     description: "Re-queue records that previously failed extraction or enrichment.",
     category: "maintenance",
     defaultPriority: "low",
-    fields: ["projectId", "limit", "notes"],
+    fields: ["limit", "notes"],
   },
   {
     id: "refresh_source_scan",
@@ -82,7 +66,7 @@ export const jobTypeCatalog: JobTypeDefinition[] = [
     description: "Generate a structured export (CSV/JSON) for downstream tools.",
     category: "export",
     defaultPriority: "normal",
-    fields: ["projectId", "sourceType", "notes"],
+    fields: ["sourceType", "notes"],
   },
 ];
 

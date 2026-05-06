@@ -78,6 +78,17 @@ _PLACEHOLDER_ORG_PATTERNS = (
     re.compile(r"^tedx", re.IGNORECASE),
     re.compile(r"^ted ", re.IGNORECASE),
 )
+_UUID_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
+
+
+def _uuid_or_none(value: Optional[str]) -> Optional[str]:
+    if not value:
+        return None
+    value = str(value)
+    return value if _UUID_RE.match(value) else None
 
 
 def _domain_of(url: Optional[str]) -> Optional[str]:
@@ -121,7 +132,7 @@ class ContactWebEnrichAgent(BaseAgent):
 
         sb = ctx.supabase
 
-        project_id: Optional[str] = payload.get("projectId") or payload.get("project_id")
+        project_id: Optional[str] = _uuid_or_none(payload.get("projectId") or payload.get("project_id"))
         contact_ids = payload.get("contact_ids") or None
         max_lookups = payload.get("max_lookups")
         try:

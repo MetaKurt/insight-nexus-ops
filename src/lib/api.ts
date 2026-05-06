@@ -197,6 +197,9 @@ const delay = <T,>(value: T, ms = 250): Promise<T> =>
 const filterByWorkspace = <T extends { workspaceId: string }>(items: T[], workspaceId?: string | null) =>
   !workspaceId || workspaceId === "all" ? items : items.filter((i) => i.workspaceId === workspaceId);
 
+const isUuid = (value?: string | null) =>
+  !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+
 
 export const api = {
   workspaces: {
@@ -353,7 +356,7 @@ export const api = {
           job_type: input.type,
           status: "queued",
           priority: priorityToInt(input.priority),
-          project_id: input.projectId ?? null,
+          project_id: isUuid(input.projectId) ? input.projectId : null,
           payload: input.payload as never,
           requested_by: input.requestedBy,
         })

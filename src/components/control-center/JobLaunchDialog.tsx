@@ -101,8 +101,7 @@ export function JobLaunchDialog({ open, onOpenChange, defaultJobType }: JobLaunc
     if (workspaceId !== "all") return workspaceId;
     if (projectId) return allProjects.find((p) => p.id === projectId)?.workspaceId;
     // These jobs operate across all contacts when no project is set.
-    if (isCrossWorkspaceJob) return workspaces[0]?.id;
-    return undefined;
+    return workspaces[0]?.id;
   }, [workspaceId, projectId, isCrossWorkspaceJob, workspaces]);
 
   const { mutate, isPending } = useMutation({

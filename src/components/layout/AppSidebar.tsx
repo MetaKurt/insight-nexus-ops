@@ -116,16 +116,7 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border p-2">
-        {!collapsed ? (
-          <div className="rounded-md bg-sidebar-accent/40 p-3 text-[11px] leading-relaxed text-muted-foreground">
-            <p className="font-medium text-foreground">Backend not connected</p>
-            <p className="mt-0.5">Showing mock data. Connect Lovable Cloud in Settings.</p>
-          </div>
-        ) : (
-          <div className="mx-auto h-2 w-2 rounded-full bg-warning" title="Backend not connected" />
-        )}
-      </SidebarFooter>
+      <SidebarFooter className="border-t border-sidebar-border p-2" />
     </Sidebar>
   );
 }

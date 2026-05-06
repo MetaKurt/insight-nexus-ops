@@ -1,5 +1,5 @@
 import { toast } from "sonner";
-import { Cloud, Key, Users as UsersIcon, Tag as TagIcon, ListChecks, Boxes } from "lucide-react";
+import { Database, Key, Users as UsersIcon, Tag as TagIcon, ListChecks, Boxes } from "lucide-react";
 
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TagChip } from "@/components/TagChip";
-import { tags } from "@/mocks/data";
+import { tags, workspaces } from "@/mocks/data";
 
 export default function Settings() {
   return (
@@ -29,28 +29,22 @@ export default function Settings() {
           <Card className="border-border/60 bg-surface-elevated">
             <CardHeader>
               <div className="flex items-center gap-3">
-                <div className="rounded-md bg-warning/15 p-2 text-warning"><Cloud className="h-5 w-5" /></div>
+                <div className="rounded-md bg-success/15 p-2 text-success"><Database className="h-5 w-5" /></div>
                 <div>
-                  <CardTitle className="text-base">Lovable Cloud — not connected</CardTitle>
-                  <CardDescription>SignalHub is currently running on mock data. Connect Lovable Cloud to persist real records.</CardDescription>
+                  <CardTitle className="text-base">Supabase backend connected</CardTitle>
+                  <CardDescription>SignalHub is using Supabase for auth, jobs, workers, logs, findings, contacts, and missions.</CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="rounded-md border border-border/60 bg-background p-4 text-sm text-muted-foreground">
-                <p className="font-medium text-foreground">What you'll get:</p>
+                <p className="font-medium text-foreground">Current backend services:</p>
                 <ul className="mt-2 list-disc space-y-1 pl-5">
-                  <li>Persistent database for projects, records, contacts, runs, and sources</li>
-                  <li>Authentication, roles, and per-workspace access control</li>
-                  <li>Edge functions to receive results from your scraping/agent pipelines</li>
-                  <li>File storage for screenshots, exports, and uploaded CSVs</li>
+                  <li>Authenticated dashboard access</li>
+                  <li>Persistent job queue, worker status, and live job logs</li>
+                  <li>Persistent findings, contacts, and mission stages</li>
+                  <li>Supabase Edge Functions for mission planning and email verification</li>
                 </ul>
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={() => toast.info("Use the Lovable side panel to enable Cloud.")}>Connect Lovable Cloud</Button>
-                <Button variant="outline" asChild>
-                  <a href="https://docs.lovable.dev/features/cloud" target="_blank" rel="noreferrer">Read docs</a>
-                </Button>
               </div>
             </CardContent>
           </Card>
@@ -60,13 +54,13 @@ export default function Settings() {
           <Card className="border-border/60 bg-surface-elevated">
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2"><Key className="h-4 w-4" /> API integrations</CardTitle>
-              <CardDescription>Configure third-party APIs once a backend is connected.</CardDescription>
+              <CardDescription>Third-party API keys are configured on the server and Supabase Edge Functions.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {["OpenAI", "LinkedIn enrichment", "Crunchbase", "Slack notifications"].map((name) => (
                 <div key={name} className="flex items-center justify-between rounded-md border border-border/60 p-3">
                   <div><p className="font-medium">{name}</p><p className="text-xs text-muted-foreground">Not configured</p></div>
-                  <Button variant="outline" size="sm" onClick={() => toast.info("Connect backend to manage secrets.")}>Configure</Button>
+                  <Button variant="outline" size="sm" onClick={() => toast.info("Manage secrets on the server or in Supabase project settings.")}>Configure</Button>
                 </div>
               ))}
             </CardContent>
@@ -80,9 +74,9 @@ export default function Settings() {
               <CardDescription>Workspaces isolate projects, records, and contacts by business line.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
-              {["Hotel Lead Gen", "TEDx Opportunities", "NVRLand", "Client Outreach", "General Research"].map((w) => (
-                <div key={w} className="flex items-center justify-between rounded-md border border-border/60 p-3">
-                  <p className="font-medium">{w}</p>
+              {workspaces.map((w) => (
+                <div key={w.id} className="flex items-center justify-between rounded-md border border-border/60 p-3">
+                  <p className="font-medium">{w.name}</p>
                   <Button size="sm" variant="ghost">Edit</Button>
                 </div>
               ))}
@@ -126,14 +120,14 @@ export default function Settings() {
           <Card className="border-border/60 bg-surface-elevated">
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2"><UsersIcon className="h-4 w-4" /> Users & roles</CardTitle>
-              <CardDescription>Connect a backend to enable real authentication and role-based access.</CardDescription>
+              <CardDescription>Authentication is managed in Supabase Auth.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="space-y-1.5">
                 <Label>Default role</Label>
                 <Input defaultValue="member" disabled />
               </div>
-              <p className="text-xs text-muted-foreground">User management is locked until Lovable Cloud is connected.</p>
+              <p className="text-xs text-muted-foreground">Create and manage users in the Supabase dashboard.</p>
             </CardContent>
           </Card>
         </TabsContent>
